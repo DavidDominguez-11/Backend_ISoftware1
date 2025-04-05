@@ -18,6 +18,11 @@
   },
   "homepage": "https://github.com/DavidDominguez-11/Backend_ISoftware1#readme",
   "dependencies": {
+    "backend_isoftware1": "file:",
     "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "eslint": "^9.24.0",
+    "nodemon": "^3.1.9"
   }
 }
