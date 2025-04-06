@@ -1,20 +1,2 @@
-# Node
-node_modules/
+node_modules
 .env
-
-# Logs
-logs
-*.log
-
-# Editor config
-.vscode/
-.idea/
-
-# Sistema operativo
-.DS_Store
-Thumbs.db
-
-# Docker
-.dockerignore
-Dockerfile
-docker-compose.yml
