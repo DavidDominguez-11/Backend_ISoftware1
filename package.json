@@ -20,7 +20,8 @@
   "dependencies": {
     "backend_isoftware1": "file:",
     "dotenv": "^16.4.7",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "pg": "^8.14.1"
   },
   "devDependencies": {
     "eslint": "^9.24.0",
