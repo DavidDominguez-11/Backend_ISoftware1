@@ -1,39 +1,53 @@
 const pool = require('../config/db');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
-const getUsuarios = async (req, res) => {
+const loginUser = async (req, res) => {
+  const { email, password } = req.body;
+
   try {
-    const { rows } = await pool.query("SELECT * FROM usuarios");
-    res.status(200).json(rows);
+    const result = await pool.query('SELECT * FROM usuarios WHERE email = $1', [email]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    const user = result.rows[0];
+
+    console.log('email:', email);
+    console.log('password:', password);
+    console.log('user.password:', user.contraseña);
+    console.log('user', user);
+
+    const passwordMatch = await bcrypt.compare(password, user.contraseña);
+    if (!passwordMatch) {
+      return res.status(401).json({ message: 'Contraseña incorrecta' });
+    }
+
+    const token = jwt.sign({ id: user.id }, 'tu_secreto_super_seguro', {
+      expiresIn: '1d',
+    });
+
+    res.json({ token, user: { id: user.id, email: user.email, Fullname: user.fullname } });
   } catch (error) {
-    console.error('Error al consultar la base de datos:', error.message);
-    res.status(500).json({ error: 'Error al conectar con la base de datos' });
+    console.error('Error en login:', error);
+    res.status(500).json({ message: 'Error al iniciar sesión' });
   }
 };
 
-const createUsuario = async (req, res) => {
-  const { nombre, email, contraseña } = req.body;
-
-  if (!nombre || !email || !contraseña) {
-    return res.status(400).json({ error: 'Faltan campos requeridos' });
-  }
-
+const contra = async (req, res) => {
   try {
-    const query = `
-      INSERT INTO usuarios (nombre, email, contraseña)
-      VALUES ($1, $2, $3)
-      RETURNING *;
-    `;
-    const values = [nombre, email, contraseña];
+    const email = "test1@gmail.com"
+    const result = await pool.query('SELECT * FROM usuarios WHERE email = $1', [email]);
 
-    const { rows } = await pool.query(query, values);
-    res.status(201).json({ message: 'Usuario creado', usuario: rows[0] });
+    res.json(result);
   } catch (error) {
-    console.error('Error al insertar en la base de datos:', error.message);
-    res.status(500).json({ error: 'Error al insertar el usuario' });
+    console.error('no se pudo:', error);
+    res.status(500).json({ message: 'no jalo' });
   }
 };
 
 module.exports = {
-  getUsuarios,
-  createUsuario,
+  loginUser,
+  contra,
 };

@@ -10,10 +10,10 @@ app.use(cors({
 app.use(express.json());
 
 // Rutas
+const authRoutes = require('./routes/authRoutes'); 
 const userRoutes = require('./routes/userRoutes');
-const authRoutes = require('./routes/authRoutes'); // AÑADIR
 
-app.use('/usuarios', userRoutes);
-app.use('/services/auth', authRoutes); // AÑADIR
+app.use('/services/auth', authRoutes);
+app.use('/services/auth', userRoutes);
 
 module.exports = app;
