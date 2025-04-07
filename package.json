@@ -19,8 +19,11 @@
   "homepage": "https://github.com/DavidDominguez-11/Backend_ISoftware1#readme",
   "dependencies": {
     "backend_isoftware1": "file:",
+    "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
     "pg": "^8.14.1"
   },
   "devDependencies": {

@@ -14,7 +14,7 @@ RUN npm install
 COPY . .
 
 # Puerto expuesto (el mismo que en server.js)
-EXPOSE 3000
+EXPOSE 4000
 
 # Comando para iniciar el servidor
 CMD ["node", "src/server.js"]
