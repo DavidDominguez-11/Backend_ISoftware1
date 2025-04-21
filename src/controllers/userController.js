@@ -14,11 +14,6 @@ const loginUser = async (req, res) => {
 
     const user = result.rows[0];
 
-    console.log('email:', email);
-    console.log('password:', password);
-    console.log('user.password:', user.contraseña);
-    console.log('user', user);
-
     const passwordMatch = await bcrypt.compare(password, user.contraseña);
     if (!passwordMatch) {
       return res.status(401).json({ message: 'Contraseña incorrecta' });
@@ -28,7 +23,23 @@ const loginUser = async (req, res) => {
       expiresIn: '1d',
     });
 
-    res.json({ token, user: { id: user.id, email: user.email, Fullname: user.fullname } });
+    // Establecer cookie segura
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // Asegura que sólo en producción se use HTTPS
+      sameSite: 'lax', // Ayuda con CSRF
+      maxAge: 24 * 60 * 60 * 1000, // 1 día
+    });
+
+    // Enviar respuesta con los datos del usuario (sin token)
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        Fullname: user.fullname
+      }
+    });
+
   } catch (error) {
     console.error('Error en login:', error);
     res.status(500).json({ message: 'Error al iniciar sesión' });
