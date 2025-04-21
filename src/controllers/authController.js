@@ -2,6 +2,7 @@ const pool = require('../config/db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
+// REGIDTER
 const registerUser = async (req, res) => {
   const { Fullname, email, password } = req.body;
 
@@ -26,7 +27,28 @@ const registerUser = async (req, res) => {
       [Fullname, email, hashedPassword]
     );
 
-    res.status(201).json({ message: 'Usuario registrado', user: result.rows[0] });
+    const user = result.rows[0];
+
+    // Generar token
+    const token = jwt.sign({ id: user.id }, 'tu_secreto_super_seguro', {
+      expiresIn: '1d',
+    });
+
+    // Crear cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000,
+    });
+
+    // Enviar respuesta con datos del usuario
+    res.status(201).json({
+      id: user.id,
+      email: user.email,
+      Fullname: user.nombre,
+    });
+
   } catch (error) {
     console.error('Error al registrar usuario:', error.message);
     res.status(500).json({ error: 'Error al registrar el usuario' });
