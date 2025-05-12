@@ -1,0 +1,19 @@
+const pool = require('../config/db');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+
+const getAllProyectos = async (req, res)  =>{
+    try{
+        const result = await pool.query('SELECT * FROM proyectos');
+        res.status(200).json({
+            proyectos: result.rows,
+        });
+    }catch (error){
+        console.error('Error al obtener proyectos:', error);
+        res.status(500).json({ message: 'Error al obtener los proyectos' });
+    }
+};
+
+module.exports = {
+  getAllProyectos,
+};
