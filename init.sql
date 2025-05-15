@@ -22,6 +22,7 @@ GRANT ALL PRIVILEGES ON DATABASE test_db TO usuario;
 CREATE TABLE IF NOT EXISTS roles (
     id SERIAL PRIMARY KEY,
     rol VARCHAR(255) NOT NULL
+    descripcion text
 );
 
 CREATE TABLE IF NOT EXISTS usuarios (
