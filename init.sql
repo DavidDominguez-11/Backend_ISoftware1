@@ -74,14 +74,21 @@ CREATE TABLE IF NOT EXISTS movimiento_materiales (
     FOREIGN KEY (material_id) REFERENCES materiales(id)
 );
 
+CREATE TABLE IF NOT EXISTS clientes (
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(255) NOT NULL,
+    telefono VARCHAR(255) UNIQUE NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS proyectos (
     id SERIAL PRIMARY KEY,
     nombre VARCHAR(255) NOT NULL,
     estado VARCHAR(50) NOT NULL,
     presupuesto DECIMAL(10,2) NOT NULL CHECK (presupuesto >= 0),
-    cliente VARCHAR(255) NOT NULL,
+    cliente_id INT NOT NULL,
     fecha_inicio DATE NOT NULL,
-    fecha_fin DATE
+    fecha_fin DATE,
+    FOREIGN KEY (cliente_id) REFERENCES Clientes(id)
 );
 
 CREATE TABLE IF NOT EXISTS material_proyecto (
@@ -114,3 +121,4 @@ CREATE TABLE IF NOT EXISTS reportes (
     contenido TEXT,
     FOREIGN KEY (proyecto_id) REFERENCES proyectos(id)
 );
+
