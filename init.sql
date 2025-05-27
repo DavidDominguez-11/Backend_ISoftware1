@@ -21,7 +21,7 @@ GRANT ALL PRIVILEGES ON DATABASE test_db TO usuario;
 -- Crear las tablas dentro de test_db
 CREATE TABLE IF NOT EXISTS roles (
     id SERIAL PRIMARY KEY,
-    rol VARCHAR(255) NOT NULL
+    rol VARCHAR(255) NOT NULL,
     descripcion text
 );
 
