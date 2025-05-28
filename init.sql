@@ -81,6 +81,11 @@ CREATE TABLE IF NOT EXISTS clientes (
     telefono VARCHAR(255) UNIQUE NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS servicios (
+    id SERIAL PRIMARY KEY,
+    servicio VARCHAR(255)
+);
+
 CREATE TABLE IF NOT EXISTS proyectos (
     id SERIAL PRIMARY KEY,
     nombre VARCHAR(255) NOT NULL,
@@ -126,7 +131,3 @@ CREATE TABLE IF NOT EXISTS reportes (
     FOREIGN KEY (proyecto_id) REFERENCES proyectos(id)
 );
 
-CREATE TABLE IF NOT EXISTS servicios (
-    id SERIAL PRIMARY KEY,
-    servicio VARCHAR(255)
-);
