@@ -89,7 +89,10 @@ CREATE TABLE IF NOT EXISTS proyectos (
     cliente_id INT NOT NULL,
     fecha_inicio DATE NOT NULL,
     fecha_fin DATE,
-    FOREIGN KEY (cliente_id) REFERENCES Clientes(id)
+    ubicacion VARCHAR(255),
+    servicio_id INT,
+    FOREING KEY (servicio_id) REFERENCES servicios(id),
+    FOREIGN KEY (cliente_id) REFERENCES clientes(id)
 );
 
 CREATE TABLE IF NOT EXISTS material_proyecto (
@@ -123,3 +126,7 @@ CREATE TABLE IF NOT EXISTS reportes (
     FOREIGN KEY (proyecto_id) REFERENCES proyectos(id)
 );
 
+CREATE TABLE IF NOT EXISTS servicios (
+    id SERIAL PRIMARY KEY,
+    servicio VARCHAR(255)
+);
