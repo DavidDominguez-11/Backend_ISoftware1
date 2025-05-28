@@ -1,31 +1,29 @@
-//app.js
+  //app.js
 
-const express = require('express');
-const cors = require('cors'); // AÑADIR
-const cookieParser = require('cookie-parser');
-require('./config/env'); // Carga variables de entorno y muestra logs
+  const express = require('express');
+  const cors = require('cors'); // AÑADIR
+  const cookieParser = require('cookie-parser');
+  require('./config/env'); // Carga variables de entorno y muestra logs
 
-const app = express();
-app.use(cors({
-    origin: 'http://localhost:5174', // permite peticiones desde tu frontend
-    credentials: true // si vas a usar cookies o encabezados auth
-  }));
-app.use(express.json());
-app.use(cookieParser());
+  const app = express();
+  app.use(cors({
+      origin: 'http://localhost:5174', // permite peticiones desde tu frontend
+      credentials: true // si vas a usar cookies o encabezados auth
+    }));
+  app.use(express.json());
+  app.use(cookieParser());
 
-// Rutas
-const authRoutes = require('./routes/authRoutes'); 
-const userRoutes = require('./routes/userRoutes');
-const projectsRoutes = require('./routes/projectRoutes');
-const rolesRoutes = require('./routes/rolesRoutes');
-const roleuserRoutes = require('./routes/roleuserRoutes');
-const usercreateRouter = require('./routes/usercreateRoutes');
+  // Rutas
+  const authRoutes = require('./routes/authRoutes'); 
+  const userRoutes = require('./routes/userRoutes');
+  const projectsRoutes = require('./routes/projectRoutes');
+  const rolesRoutes = require('./routes/rolesRoutes');
+  const usercreateRouter = require('./routes/usercreateRoutes');
 
-app.use('/services/auth', authRoutes);
-app.use('/services/auth', userRoutes);
-app.use('/services', projectsRoutes);
-app.use('/services', rolesRoutes);
-app.use('/services', roleuserRoutes);
-app.use('/services', usercreateRouter);
+  app.use('/services/auth', authRoutes);
+  app.use('/services/auth', userRoutes);
+  app.use('/services', projectsRoutes);
+  app.use('/services', rolesRoutes);
+  app.use('/services', usercreateRouter);
 
-module.exports = app;
+  module.exports = app;
