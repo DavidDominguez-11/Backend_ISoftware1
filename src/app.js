@@ -19,11 +19,14 @@
   const projectsRoutes = require('./routes/projectRoutes');
   const rolesRoutes = require('./routes/rolesRoutes');
   const usercreateRouter = require('./routes/usercreateRoutes');
+  const registerUserRolRoutes = require('./routes/registerUserRolRoutes');
 
   app.use('/services/auth', authRoutes);
   app.use('/services/auth', userRoutes);
   app.use('/services', projectsRoutes);
   app.use('/services', rolesRoutes);
   app.use('/services', usercreateRouter);
+  app.use('/services', registerUserRolRoutes);
+
 
   module.exports = app;
