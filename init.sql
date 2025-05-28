@@ -96,7 +96,7 @@ CREATE TABLE IF NOT EXISTS proyectos (
     fecha_fin DATE,
     ubicacion VARCHAR(255),
     servicio_id INT,
-    FOREING KEY (servicio_id) REFERENCES servicios(id),
+    FOREIGN KEY (servicio_id) REFERENCES servicios(id),
     FOREIGN KEY (cliente_id) REFERENCES clientes(id)
 );
 
