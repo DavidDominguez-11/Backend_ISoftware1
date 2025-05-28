@@ -18,10 +18,14 @@ const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const projectsRoutes = require('./routes/projectRoutes');
 const rolesRoutes = require('./routes/rolesRoutes');
+const roleuserRoutes = require('./routes/roleuserRoutes');
+const usercreateRouter = require('./routes/usercreateRoutes');
 
 app.use('/services/auth', authRoutes);
 app.use('/services/auth', userRoutes);
 app.use('/services', projectsRoutes);
 app.use('/services', rolesRoutes);
+app.use('/services', roleuserRoutes);
+app.use('/services', usercreateRouter);
 
 module.exports = app;
