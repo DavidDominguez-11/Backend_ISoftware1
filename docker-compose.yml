@@ -12,7 +12,8 @@ services:
       - "5431:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql  # SQL inicial
+      - ./init.sql:/docker-entrypoint-initdb.d/1_init.sql  # SQL inicial
+      - ./data.sql:/docker-entrypoint-initdb.d/2_data.sql
 
   backend:
     build: .  # Usa tu Dockerfile existente
