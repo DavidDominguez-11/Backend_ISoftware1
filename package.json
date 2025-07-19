@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest --silent",
+    "test:watch": "jest --watch --silent",
+    "test:coverage": "jest --coverage --silent",
+    "test:verbose": "jest --verbose"
   },
   "repository": {
     "type": "git",
@@ -29,6 +32,9 @@
   },
   "devDependencies": {
     "eslint": "^9.24.0",
-    "nodemon": "^3.1.9"
+    "jest": "^30.0.4",
+    "nodemon": "^3.1.9",
+    "pg-mock": "^1.0.1",
+    "supertest": "^7.1.3"
   }
 }

@@ -17,7 +17,7 @@ app.use(cookieParser());
 const authRoutes = require('./routes/authRoutes'); 
 const userRoutes = require('./routes/userRoutes');
 const projectsRoutes = require('./routes/projectRoutes');
-const rolesRoutes = require('./routes/rolesRoutes');
+const rolesRoutes = require('./routes/roleRoute');
 
 app.use('/services/auth', authRoutes);
 app.use('/services/auth', userRoutes);
