@@ -21,7 +21,7 @@ GRANT ALL PRIVILEGES ON DATABASE test_db TO usuario;
 -- Crear las tablas dentro de test_db
 CREATE TABLE IF NOT EXISTS roles (
     id SERIAL PRIMARY KEY,
-    rol VARCHAR(255) NOT NULL
+    rol VARCHAR(255) NOT NULL,
     descripcion text
 );
 
@@ -81,6 +81,11 @@ CREATE TABLE IF NOT EXISTS clientes (
     telefono VARCHAR(255) UNIQUE NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS servicios (
+    id SERIAL PRIMARY KEY,
+    servicio VARCHAR(255)
+);
+
 CREATE TABLE IF NOT EXISTS proyectos (
     id SERIAL PRIMARY KEY,
     nombre VARCHAR(255) NOT NULL,
@@ -89,7 +94,10 @@ CREATE TABLE IF NOT EXISTS proyectos (
     cliente_id INT NOT NULL,
     fecha_inicio DATE NOT NULL,
     fecha_fin DATE,
-    FOREIGN KEY (cliente_id) REFERENCES Clientes(id)
+    ubicacion VARCHAR(255),
+    servicio_id INT,
+    FOREIGN KEY (servicio_id) REFERENCES servicios(id),
+    FOREIGN KEY (cliente_id) REFERENCES clientes(id)
 );
 
 CREATE TABLE IF NOT EXISTS material_proyecto (
