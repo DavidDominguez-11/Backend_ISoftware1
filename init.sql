@@ -96,11 +96,13 @@ CREATE TABLE IF NOT EXISTS proyectos (
     FOREIGN KEY (cliente_id) REFERENCES usuarios(id)
 );
 
-CREATE TABLE IF NOT EXISTS proyecto_material(
+CREATE TABLE IF NOT EXISTS proyecto_material (
     id SERIAL PRIMARY KEY,
-    id_proyecto
-    id_material
-    ofertada
-    en_obra
-    reservado
+    id_proyecto INTEGER NOT NULL,
+    id_material INTEGER NOT NULL,
+    ofertada INTEGER DEFAULT 0,
+    en_obra INTEGER DEFAULT 0,
+    reservado INTEGER DEFAULT 0,
+    FOREIGN KEY (id_proyecto) REFERENCES proyectos(id),
+    FOREIGN KEY (id_material) REFERENCES materiales(id)
 );
