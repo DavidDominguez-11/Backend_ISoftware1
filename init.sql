@@ -75,59 +75,16 @@ CREATE TABLE IF NOT EXISTS movimiento_materiales (
     FOREIGN KEY (material_id) REFERENCES materiales(id)
 );
 
-CREATE TABLE IF NOT EXISTS clientes (
-    id SERIAL PRIMARY KEY,
-    nombre VARCHAR(255) NOT NULL,
-    telefono VARCHAR(255) UNIQUE NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS servicios (
-    id SERIAL PRIMARY KEY,
-    servicio VARCHAR(255)
-);
-
 CREATE TABLE IF NOT EXISTS proyectos (
     id SERIAL PRIMARY KEY,
     nombre VARCHAR(255) NOT NULL,
     estado VARCHAR(50) NOT NULL,
     presupuesto DECIMAL(10,2) NOT NULL CHECK (presupuesto >= 0),
-    cliente_id INT NOT NULL,
+    usuario_id INTEGER NOT NULL,
     fecha_inicio DATE NOT NULL,
     fecha_fin DATE,
     ubicacion VARCHAR(255),
     servicio_id INT,
     FOREIGN KEY (servicio_id) REFERENCES servicios(id),
-    FOREIGN KEY (cliente_id) REFERENCES clientes(id)
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
 );
-
-CREATE TABLE IF NOT EXISTS material_proyecto (
-    id SERIAL PRIMARY KEY,
-    material_id INT NOT NULL,
-    proyecto_id INT NOT NULL,
-    ofrecido INT NOT NULL CHECK (ofrecido > 0),
-    comprado INT NOT NULL CHECK (comprado > 0),
-    obra INT NOT NULL CHECK (obra > 0),
-    bodega INT NOT NULL CHECK (bodega > 0),
-    FOREIGN KEY (material_id) REFERENCES materiales(id),
-    FOREIGN KEY (proyecto_id) REFERENCES proyectos(id)
-);
-
-CREATE TABLE IF NOT EXISTS bodega_proyecto (
-    id SERIAL PRIMARY KEY,
-    material_id INTEGER NOT NULL,
-    tipo VARCHAR(255) NOT NULL,
-    cantidad INTEGER NOT NULL,
-    proyecto_id INTEGER NOT NULL,
-    fecha DATE NOT NULL,
-    FOREIGN KEY (material_id) REFERENCES materiales(id),
-    FOREIGN KEY (proyecto_id) REFERENCES proyectos(id)
-);
-
-CREATE TABLE IF NOT EXISTS reportes (
-    id SERIAL PRIMARY KEY,
-    proyecto_id INT NOT NULL,
-    fecha DATE NOT NULL,
-    contenido TEXT,
-    FOREIGN KEY (proyecto_id) REFERENCES proyectos(id)
-);
-
