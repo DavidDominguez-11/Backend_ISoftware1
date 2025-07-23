@@ -1,0 +1,101 @@
+// Enums
+Enum tipo_movimiento_enum {
+  entrada
+  salida
+}
+
+Enum estado_proyecto_enum {
+  solicitado
+  "en progreso"
+  finalizado
+  cancelado
+}
+
+Enum tipo_servicio_enum {
+  construccion
+  remodelacion
+  mantenimiento
+}
+
+// Tablas
+Table roles {
+  id integer [primary key]
+  rol varchar
+}
+
+Table usuarios {
+  id integer [primary key]
+  nombre varchar
+  email varchar [unique]
+  contraseña varchar
+}
+
+Table telefonos {
+  id integer [primary key]
+  usuario_id integer [not null]
+  telefono varchar
+}
+
+Table permisos {
+  id integer [primary key]
+  permiso varchar
+}
+
+Table roles_permisos {
+  id integer [primary key]
+  rol_id integer [not null]
+  permiso_id integer [not null]
+}
+
+Table usuarios_roles {
+  id integer [primary key]
+  usuario_id integer [not null]
+  rol_id integer [not null]
+}
+
+Table materiales {
+  id integer [primary key]
+  codigo varchar
+  material varchar
+}
+
+Table bodega_materiales {
+  id integer [primary key]
+  material_id integer [not null]
+  tipo tipo_movimiento_enum
+  cantidad integer
+  fecha date
+  observaciones text
+}
+
+Table proyectos {
+  id integer [primary key]
+  nombre varchar
+  estado estado_proyecto_enum
+  presupuesto decimal [note: ">= 0"]
+  cliente_id integer [not null]
+  fecha_inicio date
+  fecha_fin date
+  ubicacion varchar
+  tipo_servicio tipo_servicio_enum
+}
+
+Table proyecto_material {
+  id integer [primary key]
+  id_proyecto integer [not null]
+  id_material integer [not null]
+  ofertada integer [default: 0]
+  en_obra integer [default: 0]
+  reservado integer [default: 0]
+}
+
+// Relaciones
+Ref: telefonos.usuario_id > usuarios.id
+Ref: roles_permisos.rol_id > roles.id
+Ref: roles_permisos.permiso_id > permisos.id
+Ref: usuarios_roles.usuario_id > usuarios.id
+Ref: usuarios_roles.rol_id > roles.id
+Ref: bodega_materiales.material_id > materiales.id
+Ref: proyectos.cliente_id > usuarios.id
+Ref: proyecto_material.id_proyecto > proyectos.id
+Ref: proyecto_material.id_material > materiales.id
