@@ -17,12 +17,19 @@ END $$;
 -- Otorgar privilegios al usuario sobre la base de datos
 GRANT ALL PRIVILEGES ON DATABASE test_db TO usuario;
 
+-- Definicion de Enums 
+CREATE TYPE tipo_movimiento_enum AS ENUM ('entrada', 'salida');
+
+CREATE TYPE estado_proyecto_enum AS ENUM ('solicitado', 'en progreso', 'finalizado', 'cancelado');
+
+-- Enum logico que se me ocurrio para esto 
+CREATE TYPE tipo_servicio_enum AS ENUM ('construccion', 'remodelacion', 'mantenimiento'); 
+
 
 -- Crear las tablas dentro de test_db
 CREATE TABLE IF NOT EXISTS roles (
     id SERIAL PRIMARY KEY,
     rol VARCHAR(255) NOT NULL,
-    descripcion text
 );
 
 CREATE TABLE IF NOT EXISTS usuarios (
@@ -62,29 +69,38 @@ CREATE TABLE IF NOT EXISTS usuarios_roles (
 
 CREATE TABLE IF NOT EXISTS materiales (
     id SERIAL PRIMARY KEY,
-    nombre VARCHAR(255) NOT NULL
+    codigo VARCHAR(255) NOT NULL,
+    material VARCHAR(255) NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS movimiento_materiales (
+CREATE TABLE IF NOT EXISTS bodega_materiales (
     id SERIAL PRIMARY KEY,
     material_id INTEGER NOT NULL,
-    tipo VARCHAR(255) NOT NULL,
+    tipo tipo_movimiento_enum NOT NULL,
     cantidad INTEGER NOT NULL,
-    proveedor VARCHAR(255) NOT NULL,
     fecha DATE NOT NULL,
+    observaciones TEXT,
     FOREIGN KEY (material_id) REFERENCES materiales(id)
 );
 
 CREATE TABLE IF NOT EXISTS proyectos (
     id SERIAL PRIMARY KEY,
     nombre VARCHAR(255) NOT NULL,
-    estado VARCHAR(50) NOT NULL,
+    estado estado_proyecto_enum NOT NULL,
     presupuesto DECIMAL(10,2) NOT NULL CHECK (presupuesto >= 0),
-    usuario_id INTEGER NOT NULL,
+    cliente_id INTEGER NOT NULL,
     fecha_inicio DATE NOT NULL,
     fecha_fin DATE,
     ubicacion VARCHAR(255),
-    servicio_id INT,
-    FOREIGN KEY (servicio_id) REFERENCES servicios(id),
-    FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+    tipo_servicio tipo_servicio_enum NOT NULL,
+    FOREIGN KEY (cliente_id) REFERENCES usuarios(id)
+);
+
+CREATE TABLE IF NOT EXISTS proyecto_material(
+    id SERIAL PRIMARY KEY,
+    id_proyecto
+    id_material
+    ofertada
+    en_obra
+    reservado
 );
