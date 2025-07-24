@@ -29,7 +29,7 @@ CREATE TYPE tipo_servicio_enum AS ENUM ('construccion', 'remodelacion', 'manteni
 -- Crear las tablas dentro de test_db
 CREATE TABLE IF NOT EXISTS roles (
     id SERIAL PRIMARY KEY,
-    rol VARCHAR(255) NOT NULL,
+    rol VARCHAR(255) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS usuarios (
