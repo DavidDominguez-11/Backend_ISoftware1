@@ -7,7 +7,7 @@
 
   const app = express();
   app.use(cors({
-      origin: 'http://localhost:5174', // permite peticiones desde tu frontend
+      origin: 'http://localhost:5173', // permite peticiones desde tu frontend
       credentials: true // si vas a usar cookies o encabezados auth
     }));
   app.use(express.json());
@@ -15,10 +15,8 @@
 
   // Rutas
   const authRoutes = require('./routes/authRoutes'); 
-  const userRoutes = require('./routes/userRoutes');
   const projectsRoutes = require('./routes/projectRoutes');
   const rolesRoutes = require('./routes/rolesRoutes');
-  const usercreateRouter = require('./routes/usercreateRoutes');
   const registerUserRolRoutes = require('./routes/registerUserRolRoutes');
 
   app.use('/services/auth', authRoutes);
