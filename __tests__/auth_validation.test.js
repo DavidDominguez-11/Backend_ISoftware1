@@ -23,4 +23,26 @@ describe('AUTH1 - Flujo Completo de Autenticación', () => {
     // Cerrar conexión a la base de datos
     await pool.end();
   });
+
+  it('1.1 - Debe registrar un nuevo usuario exitosamente', async () => {
+    const response = await request(app)
+      .post('/services/auth/register')
+      .send(testUser);
+    
+    // Verificaciones HTTP
+    expect(response.status).toBe(201);
+    expect(response.body).toHaveProperty('id');
+    expect(response.body.email).toBe(testUser.email);
+    expect(response.body.Fullname).toBe(testUser.Fullname);
+
+    // Verificación en base de datos
+    const dbUser = await pool.query('SELECT * FROM usuarios WHERE email = $1', [testUser.email]);
+    expect(dbUser.rows.length).toBe(1);
+    
+    // Verificar que la contraseña está hasheada
+    const passwordMatch = await bcrypt.compare(testUser.password, dbUser.rows[0].contraseña);
+    expect(passwordMatch).toBe(true);
+  });  
+
+
 });
