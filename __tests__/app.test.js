@@ -9,14 +9,14 @@ const app = require('../src/app');
 
 describe('App Configuration Tests', () => {
   describe('Configuración de CORS', () => {
-    it('debería permitir peticiones desde localhost:5174', async () => {
+    it('debería permitir peticiones desde localhost:5173', async () => {
       const response = await request(app)
         .get('/services/projects')
-        .set('Origin', 'http://localhost:5174');
+        .set('Origin', 'http://localhost:5173');
 
       // Verificar que la respuesta incluye headers de CORS
       expect(response.headers).toHaveProperty('access-control-allow-origin');
-      expect(response.headers['access-control-allow-origin']).toBe('http://localhost:5174');
+      expect(response.headers['access-control-allow-origin']).toBe('http://localhost:5173');
     });
 
     it('debería rechazar peticiones desde orígenes no permitidos', async () => {

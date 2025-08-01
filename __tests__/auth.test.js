@@ -102,7 +102,7 @@ describe('Auth Controller Tests', () => {
           id: 1,
           email: 'juan@test.com',
           contraseña: hashedPassword,
-          fullname: 'Juan Pérez'
+          nombre: 'Juan Pérez'
         }]
       });
 
