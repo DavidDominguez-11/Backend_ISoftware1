@@ -1,6 +1,6 @@
 const request = require('supertest');
 const app = require('../src/app');
-const pool = require('../src/config/db');
+const pool = require('../src/config/testdb');
 const bcrypt = require('bcrypt');
 
 describe('AUTH1 - Flujo Completo de Autenticación', () => {
@@ -68,14 +68,17 @@ describe('AUTH1 - Flujo Completo de Autenticación', () => {
     const response = await request(app)
       .get('/services/auth/verify-token')
       .set('Cookie', authCookie);
+
+    console.log('RESPONSE BODY:', response.body);
     
     // Verificaciones HTTP
     expect(response.status).toBe(200);
     
     // Verificar datos de usuario
     expect(response.body.email).toBe(testUser.email);
-    expect(response.body.Fullname).toBe(testUser.Fullname);
-  });
+    // Aquí usamos el mismo nombre de propiedad que devuelve tu API
+    expect(response.body.Fullname).toBe(testUser.Fullname); // o response.body.fullname dependiendo de tu API
+});
 
   it('1.4 - Debe cerrar sesión correctamente', async () => {
     // Primero verificar que el token es válido
