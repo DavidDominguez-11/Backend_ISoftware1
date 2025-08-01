@@ -100,4 +100,27 @@ describe('AUTH1 - Flujo Completo de Autenticación', () => {
     expect(verifyAfter.status).toBe(401);
   });
 
+  describe('Casos alternativos', () => {
+    it('1.5 - Debe fallar al registrar con email duplicado', async () => {
+      const response = await request(app)
+        .post('/services/auth/register')
+        .send(testUser);
+      
+      expect(response.status).toBe(409);
+      expect(response.body.error).toBe('El correo ya está registrado');
+    });
+
+    it('1.6 - Debe fallar al iniciar sesión con credenciales inválidas', async () => {
+      const response = await request(app)
+        .post('/services/auth/login')
+        .send({
+          email: testUser.email,
+          password: "contraseña-incorrecta"
+        });
+      
+      expect(response.status).toBe(401);
+      expect(response.body.message).toBe('Contraseña incorrecta');
+    });
+  });
+
 });
