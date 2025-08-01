@@ -64,5 +64,18 @@ describe('AUTH1 - Flujo Completo de Autenticación', () => {
     expect(response.body.email).toBe(testUser.email);
   });  
 
+  it('1.3 - Debe verificar el token correctamente', async () => {
+    const response = await request(app)
+      .get('/services/auth/verify-token')
+      .set('Cookie', authCookie);
+    
+    // Verificaciones HTTP
+    expect(response.status).toBe(200);
+    
+    // Verificar datos de usuario
+    expect(response.body.email).toBe(testUser.email);
+    expect(response.body.Fullname).toBe(testUser.Fullname);
+  });
+
 
 });
