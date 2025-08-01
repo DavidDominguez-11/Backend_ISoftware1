@@ -120,7 +120,7 @@ const verifyToken = async (req, res) => {
     if (err) return res.status(401).json({ message: 'Token inválido' });
 
     try {
-      const result = await pool.query('SELECT * FROM usuarios WHERE id = $1', [decoded.id]);
+      const result = await pool.query('SELECT id, email, nombre as "Fullname" FROM usuarios WHERE id = $1', [decoded.id]);
       const user = result.rows[0];
 
       if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
