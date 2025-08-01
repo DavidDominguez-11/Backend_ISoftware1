@@ -44,5 +44,25 @@ describe('AUTH1 - Flujo Completo de Autenticación', () => {
     expect(passwordMatch).toBe(true);
   });  
 
+  it('1.2 - Debe iniciar sesión y obtener token', async () => {
+    const response = await request(app)
+      .post('/services/auth/login')
+      .send({
+        email: testUser.email,
+        password: testUser.password
+      });
+    
+    // Verificaciones HTTP
+    expect(response.status).toBe(200);
+    expect(response.headers['set-cookie']).toBeDefined();
+    
+    // Guardar cookie para pruebas siguientes
+    authCookie = response.headers['set-cookie'][0];
+    
+    // Verificar cuerpo de respuesta
+    expect(response.body).toHaveProperty('id');
+    expect(response.body.email).toBe(testUser.email);
+  });  
+
 
 });
