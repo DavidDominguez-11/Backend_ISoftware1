@@ -77,5 +77,27 @@ describe('AUTH1 - Flujo Completo de Autenticación', () => {
     expect(response.body.Fullname).toBe(testUser.Fullname);
   });
 
+  it('1.4 - Debe cerrar sesión correctamente', async () => {
+    // Primero verificar que el token es válido
+    const verifyBefore = await request(app)
+      .get('/services/auth/verify-token')
+      .set('Cookie', authCookie);
+    expect(verifyBefore.status).toBe(200);
+    
+    // Ejecutar logout
+    const response = await request(app)
+      .post('/services/auth/logout')
+      .set('Cookie', authCookie);
+    
+    // Verificaciones HTTP
+    expect(response.status).toBe(200);
+    expect(response.body.message).toBe('Sesión cerrada correctamente');
+    
+    // Verificar que el token ya no funciona
+    const verifyAfter = await request(app)
+      .get('/services/auth/verify-token')
+      .set('Cookie', authCookie);
+    expect(verifyAfter.status).toBe(401);
+  });
 
 });
