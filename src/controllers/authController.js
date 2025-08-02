@@ -125,11 +125,7 @@ const verifyToken = async (req, res) => {
 
       if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
 
-      res.json({
-        id: user.id,
-        email: user.email,
-        Fullname: user.nombre,
-      });
+      res.json(user); // Devuelve {id, email, Fullname}
     } catch (error) {
       res.status(500).json({ message: 'Error del servidor' });
     }
