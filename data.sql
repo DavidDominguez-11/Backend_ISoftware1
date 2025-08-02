@@ -8,7 +8,7 @@ INSERT INTO roles (rol) VALUES
 INSERT INTO usuarios (nombre, email, contraseña) VALUES
 ('Ana López', 'ana.lopez@mail.com', '1234'),
 ('Carlos Pérez', 'carlos.perez@mail.com', 'abcd'),
-('Luis Ramírez', 'luis.ramirez@mail.com', 'xyz987');
+('admin', 'admin@ejemplo.com', '$2b$10$TVp9OMgQT64f1r7A8DYyJeYwoGNZqhK8YV3JFqKR14zBEBxLpylom');
 
 -- TELÉFONOS
 INSERT INTO telefonos (usuario_id, telefono) VALUES
