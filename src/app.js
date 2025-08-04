@@ -18,11 +18,13 @@
   const projectsRoutes = require('./routes/projectRoutes');
   const rolesRoutes = require('./routes/rolesRoutes');
   const registerUserRolRoutes = require('./routes/registerUserRolRoutes');
+  const getEstadoMaterial = require('./routes/estado_materialesRoutes');
 
   app.use('/services/auth', authRoutes);
   app.use('/services', projectsRoutes);
   app.use('/services', rolesRoutes);
   app.use('/services', registerUserRolRoutes);
+  app.use('/services', getEstadoMaterial);
 
 
   module.exports = app;
