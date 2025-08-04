@@ -1,59 +1,63 @@
-INSERT INTO roles (rol, descripcion) VALUES
-('admin', 'Control total del sistema. Tiene todos los permisos'),
-('operaciones', 'Encargado de inventario y asignaciones.'),
-('tecnico', 'Enfocado en proyectos y subir reportes'),
-('logistica', 'Consulta inventario y alertas para contactar proveedores.');
+-- ROL
+INSERT INTO roles (rol) VALUES
+('Administrador'),
+('Supervisor'),
+('Obrero');
 
+-- USUARIOS
+INSERT INTO usuarios (nombre, email, contraseña) VALUES
+('Ana López', 'ana.lopez@mail.com', '1234'),
+('Carlos Pérez', 'carlos.perez@mail.com', 'abcd'),
+('admin', 'admin@ejemplo.com', '$2b$10$TVp9OMgQT64f1r7A8DYyJeYwoGNZqhK8YV3JFqKR14zBEBxLpylom');
+
+-- TELÉFONOS
+INSERT INTO telefonos (usuario_id, telefono) VALUES
+(1, '50212345678'),
+(2, '50298765432'),
+(3, '50211223344');
+
+-- PERMISOS
 INSERT INTO permisos (permiso) VALUES
-('ver_dashboard'),
-('ver_inventario'),
-('editar_inventario'),
-('asignar_material'),
 ('ver_proyectos'),
-('crear_proyecto'),
-('editar_proyecto'),
-('eliminar_proyecto'),
-('ver_reportes'),
-('crear_reportes'),
-('editar_reportes'),
-('eliminar_reportes'),
-('ver_alertas'),
-('crear_usuario'),
-('editar_usuario'),
-('eliminar_usuario'),
-('crear_rol'),
-('editar_rol'),
-('eliminar_rol');
+('crear_proyectos'),
+('editar_proyectos'),
+('eliminar_proyectos');
 
-
--- admin: todos los permisos (1 al 19)
-INSERT INTO roles_permisos (rol_id, permiso_id)
-SELECT 1, id FROM permisos;
-
--- operaciones: 1, 2, 3, 4, 13, 5
+-- ROLES_PERMISOS
 INSERT INTO roles_permisos (rol_id, permiso_id) VALUES
-(2, 1),
-(2, 2),
-(2, 3),
-(2, 4),
-(2, 13),
-(2, 5);
+(1, 1), (1, 2), (1, 3), (1, 4),  -- Admin
+(2, 1), (2, 2), (2, 3),          -- Supervisor
+(3, 1);                          -- Obrero
 
--- tecnico: 1, 5, 6, 7, 8, 9, 10, 11, 12, 2
-INSERT INTO roles_permisos (rol_id, permiso_id) VALUES
-(3, 1),
-(3, 5),
-(3, 6),
-(3, 7),
-(3, 8),
-(3, 9),
-(3, 10),
-(3, 11),
-(3, 12),
-(3, 2);
+-- USUARIOS_ROLES
+INSERT INTO usuarios_roles (usuario_id, rol_id) VALUES
+(1, 1), -- Ana -> Admin
+(2, 2), -- Carlos -> Supervisor
+(3, 3); -- Luis -> Obrero
 
--- logistica: 1, 2, 13
-INSERT INTO roles_permisos (rol_id, permiso_id) VALUES
-(4, 1),
-(4, 2),
-(4, 13);
+-- MATERIALES
+INSERT INTO materiales (codigo, material) VALUES
+('MAT-001', 'Cemento tipo I'),
+('MAT-002', 'Arena fina'),
+('MAT-003', 'Hierro de 3/8');
+
+-- BODEGA_MOVIMIENTOS
+INSERT INTO bodega_materiales (material_id, tipo, cantidad, fecha, observaciones) VALUES
+(1, 'entrada', 100, '2025-06-01', 'Compra inicial de cemento'),
+(2, 'entrada', 200, '2025-06-02', 'Arena para fundición'),
+(3, 'entrada', 150, '2025-06-03', 'Hierro para columnas'),
+(1, 'salida', 20, '2025-06-10', 'Material enviado a Proyecto 1'),
+(2, 'salida', 50, '2025-06-11', 'Arena enviada a Proyecto 1');
+
+-- PROYECTOS
+INSERT INTO proyectos (nombre, estado, presupuesto, cliente_id, fecha_inicio, fecha_fin, ubicacion, tipo_servicio) VALUES
+('Residencial Las Flores', 'en progreso', 125000.00, 1, '2025-05-15', '2025-12-20', 'Zona 10, Ciudad de Guatemala', 'construccion'),
+('Reparación Escuela San Juan', 'solicitado', 32000.00, 2, '2025-06-01', NULL, 'San Juan Sacatepéquez', 'remodelacion');
+
+-- PROYECTO_MATERIAL
+INSERT INTO proyecto_material (id_proyecto, id_material, ofertada, en_obra, reservado) VALUES
+(1, 1, 50, 20, 10),
+(1, 2, 100, 50, 30),
+(1, 3, 80, 0, 0),
+(2, 1, 20, 0, 0),
+(2, 2, 40, 0, 0);

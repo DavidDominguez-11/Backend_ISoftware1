@@ -17,12 +17,19 @@ END $$;
 -- Otorgar privilegios al usuario sobre la base de datos
 GRANT ALL PRIVILEGES ON DATABASE test_db TO usuario;
 
+-- Definicion de Enums 
+CREATE TYPE tipo_movimiento_enum AS ENUM ('entrada', 'salida');
+
+CREATE TYPE estado_proyecto_enum AS ENUM ('solicitado', 'en progreso', 'finalizado', 'cancelado');
+
+-- Enum logico que se me ocurrio para esto 
+CREATE TYPE tipo_servicio_enum AS ENUM ('construccion', 'remodelacion', 'mantenimiento'); 
+
 
 -- Crear las tablas dentro de test_db
 CREATE TABLE IF NOT EXISTS roles (
     id SERIAL PRIMARY KEY,
-    rol VARCHAR(255) NOT NULL,
-    descripcion text
+    rol VARCHAR(255) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS usuarios (
@@ -62,72 +69,40 @@ CREATE TABLE IF NOT EXISTS usuarios_roles (
 
 CREATE TABLE IF NOT EXISTS materiales (
     id SERIAL PRIMARY KEY,
-    nombre VARCHAR(255) NOT NULL
+    codigo VARCHAR(255) NOT NULL,
+    material VARCHAR(255) NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS movimiento_materiales (
+CREATE TABLE IF NOT EXISTS bodega_materiales (
     id SERIAL PRIMARY KEY,
     material_id INTEGER NOT NULL,
-    tipo VARCHAR(255) NOT NULL,
+    tipo tipo_movimiento_enum NOT NULL,
     cantidad INTEGER NOT NULL,
-    proveedor VARCHAR(255) NOT NULL,
     fecha DATE NOT NULL,
+    observaciones TEXT,
     FOREIGN KEY (material_id) REFERENCES materiales(id)
-);
-
-CREATE TABLE IF NOT EXISTS clientes (
-    id SERIAL PRIMARY KEY,
-    nombre VARCHAR(255) NOT NULL,
-    telefono VARCHAR(255) UNIQUE NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS servicios (
-    id SERIAL PRIMARY KEY,
-    servicio VARCHAR(255)
 );
 
 CREATE TABLE IF NOT EXISTS proyectos (
     id SERIAL PRIMARY KEY,
     nombre VARCHAR(255) NOT NULL,
-    estado VARCHAR(50) NOT NULL,
+    estado estado_proyecto_enum NOT NULL,
     presupuesto DECIMAL(10,2) NOT NULL CHECK (presupuesto >= 0),
-    cliente_id INT NOT NULL,
+    cliente_id INTEGER NOT NULL,
     fecha_inicio DATE NOT NULL,
     fecha_fin DATE,
     ubicacion VARCHAR(255),
-    servicio_id INT,
-    FOREIGN KEY (servicio_id) REFERENCES servicios(id),
-    FOREIGN KEY (cliente_id) REFERENCES clientes(id)
+    tipo_servicio tipo_servicio_enum NOT NULL,
+    FOREIGN KEY (cliente_id) REFERENCES usuarios(id)
 );
 
-CREATE TABLE IF NOT EXISTS material_proyecto (
+CREATE TABLE IF NOT EXISTS proyecto_material (
     id SERIAL PRIMARY KEY,
-    material_id INT NOT NULL,
-    proyecto_id INT NOT NULL,
-    ofrecido INT NOT NULL CHECK (ofrecido > 0),
-    comprado INT NOT NULL CHECK (comprado > 0),
-    obra INT NOT NULL CHECK (obra > 0),
-    bodega INT NOT NULL CHECK (bodega > 0),
-    FOREIGN KEY (material_id) REFERENCES materiales(id),
-    FOREIGN KEY (proyecto_id) REFERENCES proyectos(id)
+    id_proyecto INTEGER NOT NULL,
+    id_material INTEGER NOT NULL,
+    ofertada INTEGER DEFAULT 0,
+    en_obra INTEGER DEFAULT 0,
+    reservado INTEGER DEFAULT 0,
+    FOREIGN KEY (id_proyecto) REFERENCES proyectos(id),
+    FOREIGN KEY (id_material) REFERENCES materiales(id)
 );
-
-CREATE TABLE IF NOT EXISTS bodega_proyecto (
-    id SERIAL PRIMARY KEY,
-    material_id INTEGER NOT NULL,
-    tipo VARCHAR(255) NOT NULL,
-    cantidad INTEGER NOT NULL,
-    proyecto_id INTEGER NOT NULL,
-    fecha DATE NOT NULL,
-    FOREIGN KEY (material_id) REFERENCES materiales(id),
-    FOREIGN KEY (proyecto_id) REFERENCES proyectos(id)
-);
-
-CREATE TABLE IF NOT EXISTS reportes (
-    id SERIAL PRIMARY KEY,
-    proyecto_id INT NOT NULL,
-    fecha DATE NOT NULL,
-    contenido TEXT,
-    FOREIGN KEY (proyecto_id) REFERENCES proyectos(id)
-);
-

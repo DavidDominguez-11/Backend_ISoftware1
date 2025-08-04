@@ -28,6 +28,7 @@ services:
       POSTGRES_PASSWORD: secret
       POSTGRES_DB: test_db
       PORT_DB: 5432  # Puerto interno del contenedor PostgreSQL
+      SERVER_PORT_TEST: 4000  # Puerto para la aplicación Node.js
     depends_on:
       - postgres
 
