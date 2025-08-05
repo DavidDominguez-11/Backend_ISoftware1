@@ -28,10 +28,9 @@ INSERT INTO permisos (permiso) VALUES
 
 -- ROLES_PERMISOS
 INSERT INTO roles_permisos (rol_id, permiso_id) VALUES
-(1, 1), (1, 2), (1, 3), (1, 4),  -- Admin
-(2, 1), (2, 2), (2, 3), (2, 4),  -- Gerente
-(3, 1), (3, 2), (3, 3),          -- Secretaria
-(4, 1);                          -- Ingeniero
+(1, 1), (1, 2), (1, 3), (1, 4),  -- Gerente
+(2, 1), (2, 2), (2, 3),          -- Secretaria
+(3, 1);                          -- Ingeniero
 
 -- USUARIOS_ROLES
 INSERT INTO usuarios_roles (usuario_id, rol_id) VALUES
