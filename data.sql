@@ -1,20 +1,23 @@
 -- ROL
 INSERT INTO roles (rol) VALUES
-('Administrador'),
-('Supervisor'),
-('Obrero');
+('Gerente'),
+('Secretaria'),
+('Ingeniero');
 
 -- USUARIOS
 INSERT INTO usuarios (nombre, email, contraseña) VALUES
-('Ana López', 'ana.lopez@mail.com', '1234'),
-('Carlos Pérez', 'carlos.perez@mail.com', 'abcd'),
-('admin', 'admin@ejemplo.com', '$2b$10$TVp9OMgQT64f1r7A8DYyJeYwoGNZqhK8YV3JFqKR14zBEBxLpylom');
+('admin', 'admin@ejemplo.com', '$2b$10$TVp9OMgQT64f1r7A8DYyJeYwoGNZqhK8YV3JFqKR14zBEBxLpylom'),
+('gerente', 'gerente@ejemplo.com', '$2b$10$EsuwFtqivL7i8dJhYkr1WevNA0fJLLOHgFbV2NFG2DNWus.oBep9e'),
+('secretaria', 'secretaria@ejemplo.com', '$2b$10$/OplDk.tAT2.8CfoGptg8.DglB27k3pDnEqHklPZJmG1YRc6q6qkW'),
+('ingeniero', 'ingeniero@ejemplo.com', '$2b$10$zL3yqwRkBQisRrO6cUAkZe81pg5uByJazhhROt4GJzxGC1qQNC1ym'),
+('Usuario de Prueba', 'auth_test@validation.com', '$2b$10$J/XhHQx33GT/ViSjI7nzJ.NjaTBayy.g2lv7JwhGBSN1/RCw2nSUK');
 
 -- TELÉFONOS
 INSERT INTO telefonos (usuario_id, telefono) VALUES
 (1, '50212345678'),
 (2, '50298765432'),
-(3, '50211223344');
+(3, '50211223344'),
+(4, '50299223355');
 
 -- PERMISOS
 INSERT INTO permisos (permiso) VALUES
@@ -26,38 +29,54 @@ INSERT INTO permisos (permiso) VALUES
 -- ROLES_PERMISOS
 INSERT INTO roles_permisos (rol_id, permiso_id) VALUES
 (1, 1), (1, 2), (1, 3), (1, 4),  -- Admin
-(2, 1), (2, 2), (2, 3),          -- Supervisor
-(3, 1);                          -- Obrero
+(2, 1), (2, 2), (2, 3), (2, 4),  -- Gerente
+(3, 1), (3, 2), (3, 3),          -- Secretaria
+(4, 1);                          -- Ingeniero
 
 -- USUARIOS_ROLES
 INSERT INTO usuarios_roles (usuario_id, rol_id) VALUES
-(1, 1), -- Ana -> Admin
-(2, 2), -- Carlos -> Supervisor
-(3, 3); -- Luis -> Obrero
+(1, 1), -- > Admin
+(2, 1), -- > Gerente
+(3, 2), -- > Secretaria
+(4, 3); -- > Ingeniero
 
 -- MATERIALES
 INSERT INTO materiales (codigo, material) VALUES
-('MAT-001', 'Cemento tipo I'),
-('MAT-002', 'Arena fina'),
-('MAT-003', 'Hierro de 3/8');
+('Tubo-001', 'Codo 1/2'),
+('Tubo-002', 'Macho 2 1/2'),
+('Bomba-001', 'Superflo 5.0'),
+('Bomba-002', 'Superflo 2.5'),
+('Luz-001', 'Globerite Color'),
+('Luz-002', 'Globerite Blanco');
 
 -- BODEGA_MOVIMIENTOS
 INSERT INTO bodega_materiales (material_id, tipo, cantidad, fecha, observaciones) VALUES
-(1, 'entrada', 100, '2025-06-01', 'Compra inicial de cemento'),
-(2, 'entrada', 200, '2025-06-02', 'Arena para fundición'),
-(3, 'entrada', 150, '2025-06-03', 'Hierro para columnas'),
-(1, 'salida', 20, '2025-06-10', 'Material enviado a Proyecto 1'),
-(2, 'salida', 50, '2025-06-11', 'Arena enviada a Proyecto 1');
+(1, 'entrada', 100, '2025-06-01', 'Compra inicial de codo 1/2'),
+(2, 'entrada', 150, '2025-06-02', 'Compra inicial de macho 2 1/2'),
+(3, 'entrada', 2, '2025-06-03', 'Compra inicial de Superflo 5.0'),
+(4, 'salida', 3, '2025-06-03', 'Compra inicial de Superflo 2.5'),
+(5, 'entrada', 15, '2025-06-03', 'Compra inicial de Globerite Color'),
+(6, 'salida', 15, '2025-06-03', 'Compra inicial de Globerite Blanco');
 
 -- PROYECTOS
 INSERT INTO proyectos (nombre, estado, presupuesto, cliente_id, fecha_inicio, fecha_fin, ubicacion, tipo_servicio) VALUES
-('Residencial Las Flores', 'en progreso', 125000.00, 1, '2025-05-15', '2025-12-20', 'Zona 10, Ciudad de Guatemala', 'construccion'),
-('Reparación Escuela San Juan', 'solicitado', 32000.00, 2, '2025-06-01', NULL, 'San Juan Sacatepéquez', 'remodelacion');
+('La Estacion', 'solicitado', 125000.00, 1, '2025-05-15', '2025-06-20', 'Zona 10, Ciudad de Guatemala', 'construccion'),
+('Metroplaza', 'en progreso', 125000.00, 2, '2025-05-15', '2025-06-20', 'Zona 10, Ciudad de Guatemala', 'remodelacion'),
+('Megacentro', 'cancelado', 125000.00, 3, '2025-05-15', NULL, 'Zona 10, Ciudad de Guatemala', 'construccion'),
+('Interplaza', 'finalizado', 32000.00, 2, '2025-06-01', '2025-06-20', 'Zona 10, Ciudad de Guatemala', 'mantenimiento');
 
 -- PROYECTO_MATERIAL
 INSERT INTO proyecto_material (id_proyecto, id_material, ofertada, en_obra, reservado) VALUES
-(1, 1, 50, 20, 10),
-(1, 2, 100, 50, 30),
-(1, 3, 80, 0, 0),
-(2, 1, 20, 0, 0),
-(2, 2, 40, 0, 0);
+-- Proyecto 'La Estacion' (solicitado): Solo puede tener cantidad ofertada y reservada, no en obra.
+(1, 1, 50, 0, 10), -- Se ofertan 50 Codos 1/2, se reservan 10.
+(1, 2, 100, 0, 30),-- Se ofertan 100 Macho 2 1/2, se reservan 30.
+(1, 3, 2, 0, 2),   -- Se ofertan 2 Superflo 5.0 (segun existencia en bodega) y se reservan ambas.
+
+-- Proyecto 'Metroplaza' (en progreso): Debe tener materiales en obra y/o reservados.
+(2, 1, 20, 15, 5), -- Se ofertaron 20 Codos 1/2, 15 ya estan en obra y 5 reservados en bodega.
+(2, 2, 40, 20, 10),-- Se ofertaron 40 Macho 2 1/2, 20 en obra y 10 reservados.
+(2, 5, 10, 8, 2),  -- Se ofertaron 10 Globerite Color, 8 en obra y 2 reservados.
+
+-- Proyecto 'Interplaza' (finalizado): Refleja el material total que se utilizó (salidas de bodega).
+(4, 4, 3, 3, 0),   -- Se usaron 3 Superflo 2.5. La cantidad en obra es la final.
+(4, 6, 15, 15, 0); -- Se usaron 15 Globerite Blanco. La cantidad en obra es la final.
