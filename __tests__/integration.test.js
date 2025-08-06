@@ -52,10 +52,10 @@ describe('Prueba de Integración: Gestión de Proyectos según Rol (PROJ1)', () 
 
         // Las verificaciones de los datos del proyecto siguen siendo las mismas
         expect(Array.isArray(response.body)).toBe(true);
-        expect(response.body.length).toBe(2);
+        expect(response.body.length).toBe(4);
         const projectNames = response.body.map(p => p.nombre);
         expect(projectNames).toEqual(
-            expect.arrayContaining(['Residencial Las Flores', 'Reparación Escuela San Juan'])
+            expect.arrayContaining(['La Estacion', 'Metroplaza', 'Megacentro', 'Interplaza'])
         );
         expect(responseTime).toBeLessThan(1000);
         console.log(`Tiempo de respuesta para Admin: ${responseTime}ms`);

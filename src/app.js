@@ -19,12 +19,13 @@
   const rolesRoutes = require('./routes/rolesRoutes');
   const registerUserRolRoutes = require('./routes/registerUserRolRoutes');
   const getEstadoMaterial = require('./routes/estado_materialesRoutes');
+  const getBodegaMateriales = require('./routes/bodegaMaterialesRoutes');
 
   app.use('/services/auth', authRoutes);
   app.use('/services', projectsRoutes);
   app.use('/services', rolesRoutes);
   app.use('/services', registerUserRolRoutes);
   app.use('/services', getEstadoMaterial);
-
+  app.use('/services', getBodegaMateriales);
 
   module.exports = app;
