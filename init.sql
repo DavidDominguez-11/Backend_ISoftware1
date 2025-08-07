@@ -23,7 +23,7 @@ CREATE TYPE tipo_movimiento_enum AS ENUM ('entrada', 'salida');
 CREATE TYPE estado_proyecto_enum AS ENUM ('solicitado', 'en progreso', 'finalizado', 'cancelado');
 
 -- Enum logico que se me ocurrio para esto 
-CREATE TYPE tipo_servicio_enum AS ENUM ('construccion', 'remodelacion', 'mantenimiento'); 
+CREATE TYPE tipo_servicio_enum AS ENUM ('regulares', 'irregulares', 'remodelaciones', 'jacuzzis', 'paneles solares', 'fuentes y cascadas'); 
 
 
 -- Crear las tablas dentro de test_db

@@ -1,4 +1,4 @@
-// controllers/materialesControler.js
+// controllers/materialesController.js
 const pool = require('../config/db');
 
 const getMateriales = async (req, res) => {
@@ -132,33 +132,6 @@ const createMateriales = async (req, res) => {
         console.error('Error al crear materiales:', error);
         res.status(500).json({ message: 'Error interno del servidor' });
     }
-    /**
-     * ejemplo de JSON:
-        {
-            "materiales": [
-                {
-                    "codigo": "MAD001",
-                    "material": "Madera de Pino"
-                },
-                {
-                    "codigo": "CEM002",
-                    "material": "Cemento Portland"
-                },
-                {
-                    "codigo": "LAD003",
-                    "material": "Ladrillo Común"
-                },
-                {
-                    "codigo": "VAR004",
-                    "material": "Varilla de Acero 8mm"
-                },
-                {
-                    "codigo": "PIN005",
-                    "material": "Pintura Látex Blanca"
-                }
-            ]
-        }
-     */
 };
 
 module.exports = {
