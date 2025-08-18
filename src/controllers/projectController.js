@@ -40,7 +40,41 @@ const getFinishedProjects = async (req, res) => {
   }
 };
 
+const getInProgressProjects = async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+          p.id,
+          p.nombre AS proyecto,
+          p.estado,
+          p.presupuesto,
+          p.fecha_inicio,
+          p.fecha_fin,
+          p.ubicacion,
+          p.tipo_servicio,
+          u.nombre AS cliente,
+          u.email AS cliente_email
+      FROM proyectos p
+      JOIN usuarios u ON p.cliente_id = u.id
+      WHERE p.estado = 'en progreso';
+    `;
+    const result = await pool.query(query);
+
+    // Si no se encuentran proyectos en progreso, devuelve un 404.
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'No se encontraron proyectos en progreso' });
+    }
+
+    res.json(result.rows);
+
+  } catch (error) {
+    console.error('Error en getInProgressProjects:', error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+};
+
 module.exports = {
   getProjects,
-  getFinishedProjects // Exportamos la nueva función
+  getFinishedProjects,
+  getInProgressProjects
 };
