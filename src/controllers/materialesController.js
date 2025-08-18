@@ -27,6 +27,35 @@ const getMateriales = async (req, res) => {
     }
 };
 
+const getMaterialById = async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const query = `
+            SELECT 
+                id,
+                codigo,
+                material
+            FROM 
+                materiales
+            WHERE 
+                id = $1;
+        `;
+
+        const result = await pool.query(query, [id]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Material no encontrado' });
+        }
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error al obtener material por ID:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
+};
+
+
 const deleteMaterial = async (req, res) => {
     const { id } = req.params;
 
@@ -136,6 +165,7 @@ const createMateriales = async (req, res) => {
 
 module.exports = {
     getMateriales,
+    getMaterialById,
     deleteMaterial,
     createMateriales
 };
