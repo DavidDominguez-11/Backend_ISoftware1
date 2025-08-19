@@ -7,7 +7,7 @@ require('./config/env'); // Carga variables de entorno y muestra logs
 
 const app = express();
 app.use(cors({
-    origin: 'http://localhost:5173', // permite peticiones desde tu frontend
+    origin: ['http://localhost:5173', 'http://127.0.0.1:5173'], // permite peticiones desde tu frontend
     credentials: true // si vas a usar cookies o encabezados auth
   }));
 app.use(express.json());

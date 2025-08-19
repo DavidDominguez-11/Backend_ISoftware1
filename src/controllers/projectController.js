@@ -40,6 +40,26 @@ const getFinishedProjects = async (req, res) => {
   }
 };
 
+/**
+ * Obtiene el número total de proyectos con estado 'finalizado'.
+ */
+const getFinishedProjectsCount = async (req, res) => {
+  try {
+    const query = "SELECT COUNT(*) FROM proyectos WHERE estado = 'finalizado'";
+    const result = await pool.query(query);
+
+    // El resultado de COUNT(*) es una cadena, lo convertimos a número.
+    const count = parseInt(result.rows[0].count, 10);
+
+    // Devolvemos el conteo en un objeto JSON.
+    res.json({ total_finalizados: count });
+
+  } catch (error) {
+    console.error('Error en getFinishedProjectsCount:', error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+};
+
 const getInProgressProjects = async (req, res) => {
   try {
     const query = `
@@ -76,5 +96,6 @@ const getInProgressProjects = async (req, res) => {
 module.exports = {
   getProjects,
   getFinishedProjects,
+  getFinishedProjectsCount,
   getInProgressProjects
 };
