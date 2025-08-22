@@ -1,7 +1,7 @@
 // routes/materialesRoutes.js
 const express = require('express');
 const router = express.Router();
-const { getMateriales, getMaterialById, deleteMaterial, createMateriales } = require('../controllers/materialesController');
+const { getMateriales, getMaterialById, deleteMaterial, createMateriales } = require('../controllers/materialesControler');
 
 router.get('/materiales', getMateriales);
 
