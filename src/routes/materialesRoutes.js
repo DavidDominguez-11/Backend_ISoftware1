@@ -1,9 +1,11 @@
 // routes/materialesRoutes.js
 const express = require('express');
 const router = express.Router();
-const { getMateriales, getMaterialById, deleteMaterial, createMateriales } = require('../controllers/materialesControler');
+const { getMateriales, getMaterialById, deleteMaterial, createMateriales, getTotalCantidad } = require('../controllers/materialesController');
 
 router.get('/materiales', getMateriales);
+
+router.get('/materiales/total-cantidad', getTotalCantidad);
 
 router.post('/materiales', createMateriales);
 

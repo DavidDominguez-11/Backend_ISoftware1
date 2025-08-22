@@ -163,9 +163,31 @@ const createMateriales = async (req, res) => {
     }
 };
 
+const getTotalCantidad = async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                COALESCE(SUM(cantidad), 0) as total_cantidad
+            FROM 
+                bodega_materiales;
+        `;
+        
+        const result = await pool.query(query);
+        
+        // Extraer solo el entero de la suma
+        const totalCantidad = parseInt(result.rows[0].total_cantidad);
+
+        res.json(totalCantidad);
+    } catch (error) {
+        console.error('Error al calcular suma de cantidades:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
+};
+
 module.exports = {
     getMateriales,
     getMaterialById,
     deleteMaterial,
-    createMateriales
+    createMateriales,
+    getTotalCantidad
 };
