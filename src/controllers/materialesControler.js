@@ -1,4 +1,4 @@
-// controllers/materialesController.js
+// controllers/materialesControler.js
 const pool = require('../config/db');
 
 const getMateriales = async (req, res) => {
@@ -41,7 +41,7 @@ const getMaterialById = async (req, res) => {
             WHERE 
                 id = $1;
         `;
-
+        
         const result = await pool.query(query, [id]);
 
         if (result.rows.length === 0) {
@@ -50,11 +50,10 @@ const getMaterialById = async (req, res) => {
 
         res.json(result.rows[0]);
     } catch (error) {
-        console.error('Error al obtener material por ID:', error);
+        console.error('Error al obtener material:', error);
         res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
-
 
 const deleteMaterial = async (req, res) => {
     const { id } = req.params;
@@ -163,31 +162,9 @@ const createMateriales = async (req, res) => {
     }
 };
 
-const getTotalCantidad = async (req, res) => {
-    try {
-        const query = `
-            SELECT 
-                COALESCE(SUM(cantidad), 0) as total_cantidad
-            FROM 
-                bodega_materiales;
-        `;
-        
-        const result = await pool.query(query);
-        
-        // Extraer solo el entero de la suma
-        const totalCantidad = parseInt(result.rows[0].total_cantidad);
-
-        res.json(totalCantidad);
-    } catch (error) {
-        console.error('Error al calcular suma de cantidades:', error);
-        res.status(500).json({ message: 'Error interno del servidor' });
-    }
-};
-
 module.exports = {
     getMateriales,
     getMaterialById,
     deleteMaterial,
-    createMateriales,
-    getTotalCantidad
+    createMateriales
 };

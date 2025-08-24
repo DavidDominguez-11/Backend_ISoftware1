@@ -36,42 +36,65 @@ const getBodegaMateriales = async (req, res) => {
 };
 
 const createBodegaMaterial = async (req, res) => {
-    const { material_id, tipo, cantidad, fecha, observaciones } = req.body;
-  
-    // Validación básica de los datos de entrada
-    if (!material_id || !tipo || !cantidad || !fecha) {
+  const { material_id, tipo, cantidad, fecha, observaciones } = req.body;
+
+  // Validación básica de los datos de entrada
+  if (!material_id || !tipo || !cantidad || !fecha) {
       return res.status(400).json({ message: 'Faltan campos obligatorios: material_id, tipo, cantidad, fecha.' });
-    }
-  
-    // Opcional: Validar que el tipo sea uno de los valores permitidos por el ENUM
-    const tiposPermitidos = ['entrada', 'salida']; // Ajusta esto según tu ENUM
-    if (!tiposPermitidos.includes(tipo)) {
+  }
+  if (tipo !== 'entrada' && tipo !== 'salida') {
       return res.status(400).json({ message: `El tipo de movimiento '${tipo}' no es válido.` });
-    }
-  
-    try {
-      const query = `
-        INSERT INTO bodega_materiales (material_id, tipo, cantidad, fecha, observaciones)
-        VALUES ($1, $2, $3, $4, $5)
-        RETURNING *;
+  }
+  if (cantidad <= 0) {
+      return res.status(400).json({ message: 'La cantidad debe ser un número positivo.' });
+  }
+
+  // --- NUEVA LÓGICA DE VALIDACIÓN DE STOCK ---
+  if (tipo === 'salida') {
+      try {
+          // Calculamos el stock actual para ese material.
+          const stockQuery = `
+              SELECT 
+                  SUM(CASE WHEN tipo = 'entrada' THEN cantidad ELSE -cantidad END) as stock
+              FROM bodega_materiales 
+              WHERE material_id = $1;
+          `;
+          const stockResult = await pool.query(stockQuery, [material_id]);
+          const stockActual = parseInt(stockResult.rows[0].stock || 0, 10);
+
+          // Si el stock es insuficiente, rechazamos la operación.
+          if (stockActual < cantidad) {
+              return res.status(400).json({ 
+                  message: `Stock insuficiente para el material ID ${material_id}. Stock actual: ${stockActual}, se intentó sacar: ${cantidad}.` 
+              });
+          }
+      } catch (error) {
+          console.error('Error al verificar el stock:', error);
+          return res.status(500).json({ message: 'Error del servidor al verificar el stock.' });
+      }
+  }
+  // --- FIN DE LA NUEVA LÓGICA ---
+
+  try {
+      const insertQuery = `
+          INSERT INTO bodega_materiales (material_id, tipo, cantidad, fecha, observaciones)
+          VALUES ($1, $2, $3, $4, $5)
+          RETURNING *;
       `;
       const values = [material_id, tipo, cantidad, fecha, observaciones || null];
       
-      const result = await pool.query(query, values);
-  
-      // Se ha modificado la respuesta para enviar solo los datos del registro creado.
+      const result = await pool.query(insertQuery, values);
+      
       res.status(201).json(result.rows[0]);
       
-    } catch (error) {
+  } catch (error) {
       console.error('Error en createBodegaMaterial:', error);
-      // Manejo de error específico para llave foránea
-      if (error.code === '23503') { // Código de error para violación de foreign key en PostgreSQL
+      if (error.code === '23503') {
           return res.status(404).json({ message: `El material con id '${material_id}' no existe.` });
       }
-      res.status(500).json({ message: 'Error del servidor' });
-    }
-  };
-
+      res.status(500).json({ message: 'Error del servidor al crear el movimiento.' });
+  }
+};
 
 module.exports = {
   getBodegaMateriales,
