@@ -93,9 +93,37 @@ const getInProgressProjects = async (req, res) => {
   }
 };
 
+const getTotalProjectsByService = async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+          tipo_servicio AS servicio,
+          COUNT(*) AS proyectos
+      FROM proyectos
+      GROUP BY tipo_servicio
+      ORDER BY proyectos DESC;
+    `;
+    const result = await pool.query(query);
+
+    // Si no se encuentran proyectos en progreso, devuelve un 404.
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'No se encontraron proyectos en progreso' });
+    }
+
+    res.json(result.rows);
+
+  } catch (error) {
+    console.error('Error en getTotlaProjectsByService:', error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+};
+
+
+
 module.exports = {
   getProjects,
   getFinishedProjects,
   getFinishedProjectsCount,
-  getInProgressProjects
+  getInProgressProjects,
+  getTotalProjectsByService
 };
