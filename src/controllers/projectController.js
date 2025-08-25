@@ -118,6 +118,24 @@ const getTotalProjectsByService = async (req, res) => {
   }
 };
 
+const getInProgressProjectsCount = async (req, res) => {
+  try {
+    const query = `
+      SELECT COUNT(*) AS total
+      FROM proyectos
+      WHERE estado = 'en progreso';
+    `;
+
+    const result = await pool.query(query);
+
+    res.json({ total: parseInt(result.rows[0].total, 10) });
+
+  } catch (error) {
+    console.error('Error en getInProgressProjectsCount:', error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+};
+
 
 
 module.exports = {
@@ -125,5 +143,6 @@ module.exports = {
   getFinishedProjects,
   getFinishedProjectsCount,
   getInProgressProjects,
-  getTotalProjectsByService
+  getTotalProjectsByService,
+  getInProgressProjectsCount
 };
