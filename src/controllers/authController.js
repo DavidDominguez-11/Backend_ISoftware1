@@ -2,6 +2,9 @@ const pool = require('../config/db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
+require('dotenv').config();
+const secretTOKEN_SIGN = process.env.TOKEN_SIGN;
+
 // REGIDTER
 const registerUser = async (req, res) => {
   const { Fullname, email, password } = req.body;
@@ -24,7 +27,7 @@ const registerUser = async (req, res) => {
     );
     const user = result.rows[0];
     // Generar token
-    const token = jwt.sign({ id: user.id }, 'tu_secreto_super_seguro', {
+    const token = jwt.sign({ id: user.id }, secretTOKEN_SIGN, {
       expiresIn: '1d',
     });
     // Crear cookie
@@ -48,20 +51,16 @@ const registerUser = async (req, res) => {
 
 // LOGIN (CON MEJORES LOGS)
 const loginUser = async (req, res) => {
-  console.log('--- INICIO DE PETICIÓN A /login ---');
   const { email, password } = req.body;
 
   try {
+    // Validar usuario
     const result = await pool.query('SELECT * FROM usuarios WHERE email = $1', [email]);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'Usuario no encontrado' });
-    }
+    if (result.rows.length === 0) return res.status(404).json({ message: 'Usuario no encontrado' });
 
     const user = result.rows[0];
     const passwordMatch = await bcrypt.compare(password, user.contraseña);
-    if (!passwordMatch) {
-      return res.status(401).json({ message: 'Contraseña incorrecta' });
-    }
+    if (!passwordMatch) return res.status(401).json({ message: 'Contraseña incorrecta' });
 
     // Obtener roles y permisos
     const rolePermsResult = await pool.query(
@@ -78,17 +77,23 @@ const loginUser = async (req, res) => {
     const roles = [...new Set(rolePermsResult.rows.map(r => r.rol))];
     const permisos = [...new Set(rolePermsResult.rows.map(r => r.permiso).filter(Boolean))];
 
-    // Generar token con id, roles y permisos
+    // Generar token con id, email, Fullname, roles y permisos
     const token = jwt.sign(
-      { id: user.id, roles, permisos },
-      'tu_secreto_super_seguro',
+      {
+        id: user.id,
+        email: user.email,
+        Fullname: user.nombre,
+        roles,
+        permisos
+      },
+      secretTOKEN_SIGN,
       { expiresIn: '1d' }
     );
 
     // Guardar token en cookie
     res.cookie('token', token, {
       httpOnly: true,
-      secure: false, // cambiar a true en producción
+      secure: false, // true en producción
       sameSite: 'lax',
       maxAge: 24 * 60 * 60 * 1000,
     });
@@ -109,40 +114,41 @@ const loginUser = async (req, res) => {
 };
 
 
+
 // VERIFY TOKEN
-const verifyToken = async (req, res) => {
+// VERIFY TOKEN COMPLETO
+const verifyToken = (req, res) => {
+  console.log('--- INICIO DE VERIFICACIÓN DE TOKEN ---');
+
   const token = req.cookies.token;
+  console.log('[VERIFY] Token recibido:', token ? 'Sí' : 'No');
+
   if (!token) {
+    console.log('[VERIFY-ERROR] No hay token en la cookie');
     return res.status(401).json({ message: 'No autenticado' });
   }
 
-  jwt.verify(token, 'tu_secreto_super_seguro', async (err, decoded) => {
+  jwt.verify(token, secretTOKEN_SIGN, (err, decoded) => {
     if (err) {
+      console.log('[VERIFY-ERROR] Token inválido:', err.message);
       return res.status(401).json({ message: 'Token inválido' });
     }
 
-    // decoded ya trae id, roles y permisos
-    try {
-      const result = await pool.query(
-        'SELECT id, email, nombre as "Fullname" FROM usuarios WHERE id = $1',
-        [decoded.id]
-      );
-      const user = result.rows[0];
-      if (!user) {
-        return res.status(404).json({ message: 'Usuario no encontrado' });
-      }
+    console.log('[VERIFY] Token válido. Datos del usuario en token:', decoded);
 
-      res.json({
-        ...user,
-        roles: decoded.roles,
-        permisos: decoded.permisos,
-      });
-    } catch (error) {
-      console.error('[VERIFY-ERROR]', error);
-      res.status(500).json({ message: 'Error del servidor' });
-    }
+    // Retornar directamente la info que viene en el JWT
+    res.json({
+      id: decoded.id,
+      email: decoded.email,
+      Fullname: decoded.Fullname,
+      roles: decoded.roles,
+      permisos: decoded.permisos
+    });
+
+    console.log('--- FIN DE VERIFICACIÓN DE TOKEN ---');
   });
 };
+
 
 
 // LOGOUT
