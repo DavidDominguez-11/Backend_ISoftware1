@@ -54,13 +54,16 @@ const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
   try {
+    console.log('Login attempt:', req.body);
     // Validar usuario
     const result = await pool.query('SELECT * FROM usuarios WHERE email = $1', [email]);
     if (result.rows.length === 0) return res.status(404).json({ message: 'Usuario no encontrado' });
+    console.log('User query result:', result.rows);
 
     const user = result.rows[0];
     const passwordMatch = await bcrypt.compare(password, user.contraseña);
     if (!passwordMatch) return res.status(401).json({ message: 'Contraseña incorrecta' });
+    console.log('Password match:', passwordMatch);
 
     // Obtener roles y permisos
     const rolePermsResult = await pool.query(
@@ -73,6 +76,7 @@ const loginUser = async (req, res) => {
        WHERE u.id = $1`,
       [user.id]
     );
+    console.log('Roles and permissions:', rolePermsResult.rows);
 
     const roles = [...new Set(rolePermsResult.rows.map(r => r.rol))];
     const permisos = [...new Set(rolePermsResult.rows.map(r => r.permiso).filter(Boolean))];

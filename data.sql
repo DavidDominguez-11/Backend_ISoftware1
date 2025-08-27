@@ -1,8 +1,9 @@
 -- ROL
 INSERT INTO roles (rol) VALUES
-('Gerente'),
-('Secretaria'),
-('Ingeniero');
+('Administrador'),
+('Operaciones'),
+('Logistica'),
+('Cliente');
 
 -- USUARIOS
 INSERT INTO usuarios (nombre, email, contraseña) VALUES
@@ -21,16 +22,38 @@ INSERT INTO telefonos (usuario_id, telefono) VALUES
 
 -- PERMISOS
 INSERT INTO permisos (permiso) VALUES
+('ver_dashboard'),
+('ver_inventario'),
 ('ver_proyectos'),
-('crear_proyectos'),
-('editar_proyectos'),
-('eliminar_proyectos');
+('ver_reportes'),
+('crear_material'),
+('editar_inventario'),
+('eliminar_material'),
+('crear_proyecto'),
+('editar_proyecto'),
+('eliminar_proyecto'),
+('crear_reporte'),
+('eliminar_reporte'),
+('ver_alertas'),
+('crear_usuario'),
+('editar_usuario'),
+('eliminar_usuario');
 
 -- ROLES_PERMISOS
+--Gerente todos los permisos
+INSERT INTO roles_permisos (rol_id, permiso_id) SELECT 1, id FROM permisos;
+--Operaciones
 INSERT INTO roles_permisos (rol_id, permiso_id) VALUES
-(1, 1), (1, 2), (1, 3), (1, 4),  -- Gerente
-(2, 1), (2, 2), (2, 3),          -- Secretaria
-(3, 1);                          -- Ingeniero
+(2, 2),   -- ver_inventario
+(2, 3),   -- ver_proyectos
+(2, 4),   -- ver_reportes
+(2, 11),  -- crear_reporte
+(2, 12),  -- eliminar_reporte
+(2, 13),  -- ver_alertas
+(2, 6);   -- editar_inventario
+--Logistica
+INSERT INTO roles_permisos (rol_id, permiso_id) VALUES
+(3, 13);  -- ver_alertas
 
 -- USUARIOS_ROLES
 INSERT INTO usuarios_roles (usuario_id, rol_id) VALUES
