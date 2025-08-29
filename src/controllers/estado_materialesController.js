@@ -3,6 +3,7 @@ const pool = require('../config/db');
 const getEstadoMaterial = async (req, res) => {
     const getQuery = `
         SELECT 
+            m.id AS "id_material",
             m.codigo AS "codigo",
             m.material AS "nombre_material",
             COALESCE(SUM(CASE WHEN bm.tipo = 'entrada' THEN bm.cantidad ELSE -bm.cantidad END), 0) AS "en_bodega",
