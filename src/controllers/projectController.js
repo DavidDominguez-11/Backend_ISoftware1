@@ -136,6 +136,56 @@ const getInProgressProjectsCount = async (req, res) => {
   }
 };
 
+//post para crear PROYECTOS
+const createProject = async (req, res) => {
+  try {
+    const {
+      nombre,
+      estado,
+      presupuesto,
+      cliente_id,
+      fecha_inicio,
+      fecha_fin,
+      ubicacion,
+      tipo_servicio
+    } = req.body;
+
+    // Validaciones mínimas
+    if (!nombre || !estado || !presupuesto || !cliente_id || !fecha_inicio || !tipo_servicio) {
+      return res.status(400).json({ message: 'Faltan campos obligatorios' });
+    }
+
+    const query = `
+      INSERT INTO proyectos 
+        (nombre, estado, presupuesto, cliente_id, fecha_inicio, fecha_fin, ubicacion, tipo_servicio)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *;
+    `;
+
+    const values = [
+      nombre,
+      estado,
+      presupuesto,
+      cliente_id,
+      fecha_inicio,
+      fecha_fin || null,
+      ubicacion || null,
+      tipo_servicio
+    ];
+
+    const result = await pool.query(query, values);
+
+    // Devolvemos el proyecto recién creado
+    res.status(201).json({
+      message: 'Proyecto creado exitosamente',
+      proyecto: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('Error en createProject:', error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+};
 
 
 module.exports = {
@@ -144,5 +194,6 @@ module.exports = {
   getFinishedProjectsCount,
   getInProgressProjects,
   getTotalProjectsByService,
-  getInProgressProjectsCount
+  getInProgressProjectsCount,
+  createProject
 };
