@@ -2,7 +2,17 @@
 
 const pool = require('../config/db');
 
-// Obtiene todos los proyectos
+// Enum con los valores permitidos para tipo_servicio
+const TIPO_SERVICIO_ENUM = [
+  'regulares',
+  'irregulares',
+  'remodelaciones',
+  'jacuzzis',
+  'paneles solares',
+  'fuentes y cascadas'
+];
+
+// Obtener todos los proyectos
 const getProjects = async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM proyectos');
@@ -187,6 +197,50 @@ const createProject = async (req, res) => {
   }
 };
 
+// Actualizar el tipo de servicio de un proyecto específico
+const updateProjectType = async (req, res) => {
+  const { id } = req.params;
+  const { tipo_servicio } = req.body;
+
+  // 1. Validar que el tipo_servicio fue enviado
+  if (!tipo_servicio) {
+      return res.status(400).json({ message: 'El campo tipo_servicio es requerido en el cuerpo de la solicitud.' });
+  }
+
+  // 2. Validar que el valor de tipo_servicio es uno de los permitidos por el ENUM
+  if (!TIPO_SERVICIO_ENUM.includes(tipo_servicio)) {
+      return res.status(400).json({ 
+          message: 'Valor de tipo_servicio no válido.',
+          valores_permitidos: TIPO_SERVICIO_ENUM 
+      });
+  }
+
+  try {
+      const query = `
+          UPDATE proyectos 
+          SET tipo_servicio = $1 
+          WHERE id = $2 
+          RETURNING *;
+      `;
+      const result = await pool.query(query, [tipo_servicio, id]);
+
+      // 3. Verificar si el proyecto se encontró y se actualizó
+      if (result.rowCount === 0) {
+          return res.status(404).json({ message: `No se encontró un proyecto con el ID ${id}.` });
+      }
+
+      // 4. Enviar el proyecto actualizado como respuesta
+      res.status(200).json({
+          message: 'El tipo de proyecto fue actualizado exitosamente.',
+          proyecto: result.rows[0]
+      });
+
+  } catch (error) {
+      console.error('Error en updateProjectType:', error);
+      res.status(500).json({ message: 'Error del servidor al actualizar el proyecto.' });
+  }
+};
+
 
 module.exports = {
   getProjects,
@@ -195,5 +249,6 @@ module.exports = {
   getInProgressProjects,
   getTotalProjectsByService,
   getInProgressProjectsCount,
-  createProject
+  createProject,
+  updateProjectType
 };
