@@ -241,6 +241,26 @@ const updateProjectType = async (req, res) => {
   }
 };
 
+const getProjectById = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+      const query = 'SELECT * FROM proyectos WHERE id = $1';
+      const result = await pool.query(query, [id]);
+
+      // Verificar si se encontró el proyecto
+      if (result.rows.length === 0) {
+          return res.status(404).json({ message: `No se encontró un proyecto con el ID ${id}.` });
+      }
+
+      // Enviar el proyecto encontrado
+      res.json(result.rows[0]);
+
+  } catch (error) {
+      console.error('Error en getProjectById:', error);
+      res.status(500).json({ message: 'Error del servidor al obtener el proyecto.' });
+  }
+};
 
 module.exports = {
   getProjects,
@@ -250,5 +270,6 @@ module.exports = {
   getTotalProjectsByService,
   getInProgressProjectsCount,
   createProject,
-  updateProjectType
+  updateProjectType,
+  getProjectById
 };
