@@ -3,7 +3,20 @@
 const express = require('express');
 const router = express.Router();
 
-const { getProjects, getFinishedProjects, getFinishedProjectsCount, getInProgressProjects, getTotalProjectsByService, getInProgressProjectsCount, createProject, updateProjectType, getProjectStatuses, getProjectById } = require('../controllers/projectController');
+const {
+    getProjects,
+    getFinishedProjects,
+    getFinishedProjectsCount,
+    getInProgressProjects,
+    getTotalProjectsByService,
+    getInProgressProjectsCount,
+    createProject,
+    updateProjectType,
+    getProjectStatuses,
+    getProjectById,
+    updateProjectStatus
+} = require('../controllers/projectController');
+
 
 router.get('/projects', getProjects);
 router.get('/projects/finished', getFinishedProjects);
@@ -15,5 +28,6 @@ router.post('/projects/create', createProject);
 router.patch('/projects/:id/tipo', updateProjectType);
 router.get('/projects/projectById/:id', getProjectById);
 router.get('/projects/status-projects', getProjectStatuses);
+router.patch('/projects/:id/estado', updateProjectStatus);
 
 module.exports = router;

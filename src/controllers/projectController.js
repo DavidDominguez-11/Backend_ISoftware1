@@ -294,6 +294,72 @@ const getProjectStatuses = async (req, res) => {
   }
 };
 
+// PATCH para proyecto/id/estado PATCH para actualizar el estado de un proyecto 
+const updateProjectStatus = async (req, res) => {
+  const ESTADO_PROYECTO_ENUM = [
+    'solicitado',
+    'en progreso', 
+    'finalizado',
+    'cancelado'
+  ];
+  const { id } = req.params;
+  const { estado } = req.body;
+
+  // Validar que el ID sea un número
+  if (isNaN(id) || !Number.isInteger(Number(id))) {
+    return res.status(400).json({ 
+      message: 'El ID debe ser un número entero válido',
+      received: id
+    });
+  }
+
+  // Validar que el estado fue enviado
+  if (!estado) {
+    return res.status(400).json({ 
+      message: 'El campo "estado" es requerido' 
+    });
+  }
+
+  // Validar que el estado sea uno de los permitidos
+  if (!ESTADO_PROYECTO_ENUM.includes(estado)) {
+    return res.status(400).json({ 
+      message: 'Valor de estado no válido',
+      valores_permitidos: ESTADO_PROYECTO_ENUM 
+    });
+  }
+
+  try {
+    const query = `
+      UPDATE proyectos 
+      SET estado = $1 
+      WHERE id = $2 
+      RETURNING *;
+    `;
+    
+    const result = await pool.query(query, [estado, parseInt(id)]);
+
+    // Verificar si el proyecto se encontró y se actualizó
+    if (result.rowCount === 0) {
+      return res.status(404).json({ 
+        message: `No se encontró un proyecto con el ID ${id}.` 
+      });
+    }
+
+    // Enviar el proyecto actualizado como respuesta
+    res.status(200).json({
+      message: 'Estado del proyecto actualizado exitosamente',
+      proyecto: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('Error en updateProjectStatus:', error);
+    res.status(500).json({ 
+      message: 'Error del servidor al actualizar el estado del proyecto',
+      error: error.message 
+    });
+  }
+};
+
 module.exports = {
   getProjects,
   getFinishedProjects,
@@ -304,5 +370,6 @@ module.exports = {
   createProject,
   updateProjectType,
   getProjectStatuses, 
-  getProjectById
+  getProjectById,
+  updateProjectStatus
 };
