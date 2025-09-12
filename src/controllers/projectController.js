@@ -240,28 +240,32 @@ const updateProjectType = async (req, res) => {
       res.status(500).json({ message: 'Error del servidor al actualizar el proyecto.' });
   }
 };
-/*
+
 const getProjectById = async (req, res) => {
   const { id } = req.params;
 
+  if (isNaN(id) || !Number.isInteger(Number(id))) {
+    return res.status(400).json({ 
+      message: 'El ID debe ser un número entero válido',
+      received: id
+    });
+  }
+
   try {
-      const query = 'SELECT * FROM proyectos WHERE id = $1';
-      const result = await pool.query(query, [id]);
+    const query = 'SELECT * FROM proyectos WHERE id = $1';
+    const result = await pool.query(query, [parseInt(id)]);
 
-      // Verificar si se encontró el proyecto
-      if (result.rows.length === 0) {
-          return res.status(404).json({ message: `No se encontró un proyecto con el ID ${id}.` });
-      }
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: `No se encontró un proyecto con el ID ${id}.` });
+    }
 
-      // Enviar el proyecto encontrado
-      res.json(result.rows[0]);
+    res.json(result.rows[0]);
 
   } catch (error) {
-      console.error('Error en getProjectById:', error);
-      res.status(500).json({ message: 'Error del servidor al obtener el proyecto.' });
+    console.error('Error en getProjectById:', error);
+    res.status(500).json({ message: 'Error del servidor al obtener el proyecto.' });
   }
 };
-*/
 
 // GET estado_proyectos
 const getProjectStatuses = async (req, res) => {
@@ -300,5 +304,5 @@ module.exports = {
   createProject,
   updateProjectType,
   getProjectStatuses, 
-  //getProjectById
+  getProjectById
 };
