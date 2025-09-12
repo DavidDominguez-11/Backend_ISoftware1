@@ -240,7 +240,7 @@ const updateProjectType = async (req, res) => {
       res.status(500).json({ message: 'Error del servidor al actualizar el proyecto.' });
   }
 };
-
+/*
 const getProjectById = async (req, res) => {
   const { id } = req.params;
 
@@ -261,6 +261,34 @@ const getProjectById = async (req, res) => {
       res.status(500).json({ message: 'Error del servidor al obtener el proyecto.' });
   }
 };
+*/
+
+// GET estado_proyectos
+const getProjectStatuses = async (req, res) => {
+  try {
+    // Consulta para obtener los valores del ENUM estado_proyecto_enum
+    const query = `
+      SELECT unnest(enum_range(NULL::estado_proyecto_enum)) AS estado;
+    `;
+    
+    const result = await pool.query(query);
+    
+    // Extraemos solo los valores del ENUM
+    const estados = result.rows.map(row => row.estado);
+    
+    res.json({
+      estados: estados,
+      total: estados.length
+    });
+    
+  } catch (error) {
+    console.error('Error en getProjectStatuses:', error);
+    res.status(500).json({ 
+      message: 'Error del servidor al obtener los estados de proyectos',
+      error: error.message 
+    });
+  }
+};
 
 module.exports = {
   getProjects,
@@ -271,5 +299,6 @@ module.exports = {
   getInProgressProjectsCount,
   createProject,
   updateProjectType,
-  getProjectById
+  getProjectStatuses, 
+  //getProjectById
 };
