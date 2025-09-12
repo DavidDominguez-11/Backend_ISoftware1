@@ -244,21 +244,119 @@ const updateProjectType = async (req, res) => {
 const getProjectById = async (req, res) => {
   const { id } = req.params;
 
+  if (isNaN(id) || !Number.isInteger(Number(id))) {
+    return res.status(400).json({ 
+      message: 'El ID debe ser un número entero válido',
+      received: id
+    });
+  }
+
   try {
-      const query = 'SELECT * FROM proyectos WHERE id = $1';
-      const result = await pool.query(query, [id]);
+    const query = 'SELECT * FROM proyectos WHERE id = $1';
+    const result = await pool.query(query, [parseInt(id)]);
 
-      // Verificar si se encontró el proyecto
-      if (result.rows.length === 0) {
-          return res.status(404).json({ message: `No se encontró un proyecto con el ID ${id}.` });
-      }
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: `No se encontró un proyecto con el ID ${id}.` });
+    }
 
-      // Enviar el proyecto encontrado
-      res.json(result.rows[0]);
+    res.json(result.rows[0]);
 
   } catch (error) {
-      console.error('Error en getProjectById:', error);
-      res.status(500).json({ message: 'Error del servidor al obtener el proyecto.' });
+    console.error('Error en getProjectById:', error);
+    res.status(500).json({ message: 'Error del servidor al obtener el proyecto.' });
+  }
+};
+
+// GET estado_proyectos
+const getProjectStatuses = async (req, res) => {
+  try {
+    // Consulta para obtener los valores del ENUM estado_proyecto_enum
+    const query = `
+      SELECT unnest(enum_range(NULL::estado_proyecto_enum)) AS estado;
+    `;
+    
+    const result = await pool.query(query);
+    
+    // Extraemos solo los valores del ENUM
+    const estados = result.rows.map(row => row.estado);
+    
+    res.json({
+      estados: estados,
+      total: estados.length
+    });
+    
+  } catch (error) {
+    console.error('Error en getProjectStatuses:', error);
+    res.status(500).json({ 
+      message: 'Error del servidor al obtener los estados de proyectos',
+      error: error.message 
+    });
+  }
+};
+
+// PATCH para proyecto/id/estado PATCH para actualizar el estado de un proyecto 
+const updateProjectStatus = async (req, res) => {
+  const ESTADO_PROYECTO_ENUM = [
+    'solicitado',
+    'en progreso', 
+    'finalizado',
+    'cancelado'
+  ];
+  const { id } = req.params;
+  const { estado } = req.body;
+
+  // Validar que el ID sea un número
+  if (isNaN(id) || !Number.isInteger(Number(id))) {
+    return res.status(400).json({ 
+      message: 'El ID debe ser un número entero válido',
+      received: id
+    });
+  }
+
+  // Validar que el estado fue enviado
+  if (!estado) {
+    return res.status(400).json({ 
+      message: 'El campo "estado" es requerido' 
+    });
+  }
+
+  // Validar que el estado sea uno de los permitidos
+  if (!ESTADO_PROYECTO_ENUM.includes(estado)) {
+    return res.status(400).json({ 
+      message: 'Valor de estado no válido',
+      valores_permitidos: ESTADO_PROYECTO_ENUM 
+    });
+  }
+
+  try {
+    const query = `
+      UPDATE proyectos 
+      SET estado = $1 
+      WHERE id = $2 
+      RETURNING *;
+    `;
+    
+    const result = await pool.query(query, [estado, parseInt(id)]);
+
+    // Verificar si el proyecto se encontró y se actualizó
+    if (result.rowCount === 0) {
+      return res.status(404).json({ 
+        message: `No se encontró un proyecto con el ID ${id}.` 
+      });
+    }
+
+    // Enviar el proyecto actualizado como respuesta
+    res.status(200).json({
+      message: 'Estado del proyecto actualizado exitosamente',
+      proyecto: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('Error en updateProjectStatus:', error);
+    res.status(500).json({ 
+      message: 'Error del servidor al actualizar el estado del proyecto',
+      error: error.message 
+    });
   }
 };
 
@@ -271,5 +369,7 @@ module.exports = {
   getInProgressProjectsCount,
   createProject,
   updateProjectType,
-  getProjectById
+  getProjectStatuses, 
+  getProjectById,
+  updateProjectStatus
 };
