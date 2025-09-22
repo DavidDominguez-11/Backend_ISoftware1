@@ -1,3 +1,4 @@
+// no se porque existe, lo dejo aqui por si al caso
 // controllers/materialesControler.js
 const pool = require('../config/db');
 
