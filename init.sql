@@ -106,3 +106,10 @@ CREATE TABLE IF NOT EXISTS proyecto_material (
     FOREIGN KEY (id_proyecto) REFERENCES proyectos(id),
     FOREIGN KEY (id_material) REFERENCES materiales(id)
 );
+
+
+CREATE TABLE IF NOT EXISTS clientes(
+    id INT PRIMARY KEY,
+    nombre VARCHAR,
+    teléfono VARCHAR PRIMARY KEY,
+);
