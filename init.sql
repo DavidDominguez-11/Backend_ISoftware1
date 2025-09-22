@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS proyectos (
     fecha_fin DATE,
     ubicacion VARCHAR(255),
     tipo_servicio tipo_servicio_enum NOT NULL,
-    FOREIGN KEY (cliente_id) REFERENCES usuarios(id)
+    FOREIGN KEY (cliente_id) REFERENCES clientes(id)
 );
 
 CREATE TABLE IF NOT EXISTS proyecto_material (
