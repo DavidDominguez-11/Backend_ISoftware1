@@ -133,7 +133,55 @@ const createProyectoMaterial = async (req, res) => {
   };
   
 
+/**
+ * Obtiene todos los materiales para un proyecto específico, dado su ID.
+ */
+const getProyectoMaterialById = async (req, res) => {
+  const { id_proyecto } = req.params;
+
+  // Validar que id_proyecto es un número
+  if (isNaN(id_proyecto)) {
+    return res.status(400).json({ message: 'El ID del proyecto debe ser un número.' });
+  }
+
+  try {
+    const query = `
+      SELECT
+        pm.id,
+        pm.id_proyecto,
+        p.nombre AS nombre_proyecto,
+        pm.id_material,
+        m.codigo AS codigo_material,
+        m.material AS nombre_material,
+        pm.ofertada,
+        pm.en_obra,
+        pm.reservado
+      FROM
+        proyecto_material pm
+      JOIN
+        proyectos p ON pm.id_proyecto = p.id
+      JOIN
+        materiales m ON pm.id_material = m.id
+      WHERE
+        pm.id_proyecto = $1
+      ORDER BY
+        m.material;
+    `;
+    const result = await pool.query(query, [id_proyecto]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: `No se encontraron materiales para el proyecto con ID ${id_proyecto}` });
+    }
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error en getProyectoMaterialById:', error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+};
+
 module.exports = {
   getProyectoMaterialEnProgreso,
   createProyectoMaterial,
+  getProyectoMaterialById,
 };
