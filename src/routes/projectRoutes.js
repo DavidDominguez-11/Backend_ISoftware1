@@ -14,7 +14,8 @@ const {
     updateProjectType,
     getProjectStatuses,
     getProjectById,
-    updateProjectStatus
+    updateProjectStatus,
+    updateProjectById
 } = require('../controllers/projectController');
 
 
@@ -29,5 +30,6 @@ router.patch('/projects/:id/tipo', updateProjectType);
 router.get('/projects/projectById/:id', getProjectById);
 router.get('/projects/status-projects', getProjectStatuses);
 router.patch('/projects/:id/estado', updateProjectStatus);
+router.put('/projects/:id', updateProjectById);
 
 module.exports = router;
