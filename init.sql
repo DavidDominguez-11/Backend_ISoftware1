@@ -25,7 +25,6 @@ CREATE TYPE estado_proyecto_enum AS ENUM ('solicitado', 'en progreso', 'finaliza
 -- Enum logico que se me ocurrio para esto 
 CREATE TYPE tipo_servicio_enum AS ENUM ('regulares', 'irregulares', 'remodelaciones', 'jacuzzis', 'paneles solares', 'fuentes y cascadas'); 
 
-
 -- Crear las tablas dentro de test_db
 CREATE TABLE IF NOT EXISTS roles (
     id SERIAL PRIMARY KEY,
@@ -83,6 +82,12 @@ CREATE TABLE IF NOT EXISTS bodega_materiales (
     FOREIGN KEY (material_id) REFERENCES materiales(id)
 );
 
+CREATE TABLE IF NOT EXISTS clientes (
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(255) NOT NULL,
+    telefono VARCHAR(255) UNIQUE NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS proyectos (
     id SERIAL PRIMARY KEY,
     nombre VARCHAR(255) NOT NULL,
@@ -105,11 +110,4 @@ CREATE TABLE IF NOT EXISTS proyecto_material (
     reservado INTEGER DEFAULT 0,
     FOREIGN KEY (id_proyecto) REFERENCES proyectos(id),
     FOREIGN KEY (id_material) REFERENCES materiales(id)
-);
-
-
-CREATE TABLE IF NOT EXISTS clientes(
-    id INT PRIMARY KEY,
-    nombre VARCHAR,
-    teléfono VARCHAR PRIMARY KEY,
 );
