@@ -80,12 +80,19 @@ INSERT INTO bodega_materiales (material_id, tipo, cantidad, fecha, observaciones
 (5, 'entrada', 15, '2025-06-03', 'Compra inicial de Globerite Color'),
 (6, 'salida', 15, '2025-06-03', 'Compra inicial de Globerite Blanco');
 
+-- CLIENTES (AGREGADO - Debe ir ANTES de proyectos)
+INSERT INTO clientes (nombre, telefono) VALUES
+('Empresa La Estación S.A.', '50211111111'),
+('Corporación Metroplaza', '50222222222'),
+('Grupo Megacentro', '50233333333'),
+('Desarrollos Interplaza', '50244444444');
+
 -- PROYECTOS
 INSERT INTO proyectos (nombre, estado, presupuesto, cliente_id, fecha_inicio, fecha_fin, ubicacion, tipo_servicio) VALUES
 ('La Estacion', 'solicitado', 125000.00, 1, '2025-05-15', '2025-06-20', 'Zona 10, Ciudad de Guatemala', 'regulares'),
 ('Metroplaza', 'en progreso', 125000.00, 2, '2025-05-15', '2025-06-20', 'Zona 10, Ciudad de Guatemala', 'irregulares'),
 ('Megacentro', 'cancelado', 125000.00, 3, '2025-05-15', NULL, 'Zona 10, Ciudad de Guatemala', 'remodelaciones'),
-('Interplaza', 'finalizado', 32000.00, 2, '2025-06-01', '2025-06-20', 'Zona 10, Ciudad de Guatemala', 'jacuzzis');
+('Interplaza', 'finalizado', 32000.00, 4, '2025-06-01', '2025-06-20', 'Zona 10, Ciudad de Guatemala', 'jacuzzis');
 
 -- PROYECTO_MATERIAL
 INSERT INTO proyecto_material (id_proyecto, id_material, ofertada, en_obra, reservado) VALUES
