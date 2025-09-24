@@ -17,18 +17,24 @@ const createMaterial = async (req, res) => {
       });
     }
 
-    // Single material creation with duplicate check
+    // Single material creation with explicit duplicate check
     const { codigo, material } = req.body;
     
-    // Check for duplicate codigo in single creation
-    const existing = await prisma.materiales.findFirst({ where: { codigo } });
+    // Check for duplicate codigo before creating
+    const existing = await prisma.materiales.findFirst({ 
+      where: { codigo } 
+    });
+    
     if (existing) {
-      return res.status(400).json({ message: 'Los códigos ya existen' });
+      return res.status(400).json({ 
+        message: 'Los códigos ya existen' 
+      });
     }
 
     const newMaterial = await prisma.materiales.create({
       data: { codigo, material }
     });
+    
     res.status(201).json(newMaterial);
 
   } catch (error) {
