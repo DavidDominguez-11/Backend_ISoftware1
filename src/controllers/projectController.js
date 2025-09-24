@@ -360,6 +360,119 @@ const updateProjectStatus = async (req, res) => {
   }
 };
 
+// PUT actualizar proyecto por ID (actualización parcial de campos permitidos)
+const updateProjectById = async (req, res) => {
+  const { id } = req.params;
+
+  if (isNaN(id) || !Number.isInteger(Number(id))) {
+    return res.status(400).json({
+      message: 'El ID debe ser un número entero válido',
+      received: id
+    });
+  }
+
+  const {
+    nombre,
+    estado,
+    presupuesto,
+    cliente_id,
+    fecha_inicio,
+    fecha_fin,
+    ubicacion,
+    tipo_servicio
+  } = req.body;
+
+  // Verificar que al menos un campo se haya proporcionado
+  if (
+    nombre === undefined &&
+    estado === undefined &&
+    presupuesto === undefined &&
+    cliente_id === undefined &&
+    fecha_inicio === undefined &&
+    fecha_fin === undefined &&
+    ubicacion === undefined &&
+    tipo_servicio === undefined
+  ) {
+    return res.status(400).json({ message: 'No se proporcionaron campos para actualizar' });
+  }
+
+  // Validaciones específicas
+  const ESTADO_PROYECTO_ENUM = [
+    'solicitado',
+    'en progreso',
+    'finalizado',
+    'cancelado'
+  ];
+
+  if (estado !== undefined && !ESTADO_PROYECTO_ENUM.includes(estado)) {
+    return res.status(400).json({
+      message: 'Valor de estado no válido',
+      valores_permitidos: ESTADO_PROYECTO_ENUM
+    });
+  }
+
+  if (tipo_servicio !== undefined && !TIPO_SERVICIO_ENUM.includes(tipo_servicio)) {
+    return res.status(400).json({
+      message: 'Valor de tipo_servicio no válido',
+      valores_permitidos: TIPO_SERVICIO_ENUM
+    });
+  }
+
+  if (presupuesto !== undefined && (isNaN(presupuesto) || Number(presupuesto) < 0)) {
+    return res.status(400).json({ message: 'El presupuesto debe ser un número mayor o igual a 0' });
+  }
+
+  try {
+    // Validar existencia de cliente si se envía cliente_id
+    if (cliente_id !== undefined) {
+      if (isNaN(cliente_id) || !Number.isInteger(Number(cliente_id))) {
+        return res.status(400).json({ message: 'El cliente_id debe ser un número entero válido' });
+      }
+      const checkCliente = await pool.query('SELECT 1 FROM clientes WHERE id = $1', [parseInt(cliente_id)]);
+      if (checkCliente.rowCount === 0) {
+        return res.status(400).json({ message: `El cliente_id ${cliente_id} no existe` });
+      }
+    }
+
+    // Construcción dinámica del SET
+    const fields = [];
+    const values = [];
+    let idx = 1;
+
+    if (nombre !== undefined) { fields.push(`nombre = $${idx++}`); values.push(nombre); }
+    if (estado !== undefined) { fields.push(`estado = $${idx++}`); values.push(estado); }
+    if (presupuesto !== undefined) { fields.push(`presupuesto = $${idx++}`); values.push(presupuesto); }
+    if (cliente_id !== undefined) { fields.push(`cliente_id = $${idx++}`); values.push(parseInt(cliente_id)); }
+    if (fecha_inicio !== undefined) { fields.push(`fecha_inicio = $${idx++}`); values.push(fecha_inicio); }
+    if (fecha_fin !== undefined) { fields.push(`fecha_fin = $${idx++}`); values.push(fecha_fin); }
+    if (ubicacion !== undefined) { fields.push(`ubicacion = $${idx++}`); values.push(ubicacion); }
+    if (tipo_servicio !== undefined) { fields.push(`tipo_servicio = $${idx++}`); values.push(tipo_servicio); }
+
+    const query = `
+      UPDATE proyectos
+      SET ${fields.join(', ')}
+      WHERE id = $${idx}
+      RETURNING *;
+    `;
+
+    values.push(parseInt(id));
+
+    const result = await pool.query(query, values);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: `No se encontró un proyecto con el ID ${id}.` });
+    }
+
+    return res.status(200).json({
+      message: 'Proyecto actualizado exitosamente',
+      proyecto: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error en updateProjectById:', error);
+    return res.status(500).json({ message: 'Error del servidor al actualizar el proyecto', error: error.message });
+  }
+};
+
 module.exports = {
   getProjects,
   getFinishedProjects,
@@ -371,5 +484,6 @@ module.exports = {
   updateProjectType,
   getProjectStatuses, 
   getProjectById,
-  updateProjectStatus
+  updateProjectStatus,
+  updateProjectById
 };
