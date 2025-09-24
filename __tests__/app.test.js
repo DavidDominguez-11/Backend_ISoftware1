@@ -1,8 +1,17 @@
 const request = require('supertest');
 
-// Mock de la base de datos antes de importar la app
-jest.mock('../src/config/db', () => ({
-  query: jest.fn().mockResolvedValue({ rows: [] })
+// Mock Prisma client for tests
+jest.mock('../src/prismaClient', () => ({
+  usuarios: {
+    findUnique: jest.fn(),
+    findMany: jest.fn().mockResolvedValue([]),
+    create: jest.fn(),
+    deleteMany: jest.fn()
+  },
+  proyectos: {
+    findMany: jest.fn().mockResolvedValue([])
+  },
+  $disconnect: jest.fn()
 }));
 
 const app = require('../src/app');

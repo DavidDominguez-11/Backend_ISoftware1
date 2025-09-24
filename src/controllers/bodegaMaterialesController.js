@@ -1,34 +1,18 @@
 //controllers/bodegaMaterialesController.js
-const pool = require('../config/db');
+const prisma = require('../prismaClient');
 
 const getBodegaMateriales = async (req, res) => {
   try {
-    // Consulta SQL que une las tablas bodega_materiales y materiales
-    const query = `
-      SELECT 
-        bm.id,
-        bm.material_id,
-        m.codigo AS material_codigo,
-        m.material AS material_nombre,
-        bm.tipo,
-        bm.cantidad,
-        bm.fecha,
-        bm.observaciones
-      FROM 
-        bodega_materiales bm
-      JOIN 
-        materiales m ON bm.material_id = m.id
-      ORDER BY 
-        bm.fecha DESC;
-    `;
-    
-    const result = await pool.query(query);
+    const movimientos = await prisma.bodega_materiales.findMany({
+      include: { material: true },
+      orderBy: { fecha: 'desc' }
+    });
 
-    if (result.rows.length === 0) {
+    if (movimientos.length === 0) {
       return res.status(404).json({ message: 'No se encontraron registros en la bodega de materiales' });
     }
 
-    res.json(result.rows);
+    res.json(movimientos);
   } catch (error) {
     console.error('Error en getBodegaMateriales:', error);
     res.status(500).json({ message: 'Error del servidor' });
@@ -53,14 +37,17 @@ const createBodegaMaterial = async (req, res) => {
   if (tipo === 'salida') {
       try {
           // Calculamos el stock actual para ese material.
-          const stockQuery = `
-              SELECT 
-                  SUM(CASE WHEN tipo = 'entrada' THEN cantidad ELSE -cantidad END) as stock
-              FROM bodega_materiales 
-              WHERE material_id = $1;
-          `;
-          const stockResult = await pool.query(stockQuery, [material_id]);
-          const stockActual = parseInt(stockResult.rows[0].stock || 0, 10);
+          const stock = await prisma.bodega_materiales.aggregate({
+              _sum: {
+                  cantidad: true
+              },
+              where: {
+                  material_id: material_id,
+                  tipo: 'entrada'
+              }
+          });
+
+          const stockActual = stock._sum.cantidad || 0;
 
           // Si el stock es insuficiente, rechazamos la operación.
           if (stockActual < cantidad) {
@@ -76,20 +63,21 @@ const createBodegaMaterial = async (req, res) => {
   // --- FIN DE LA NUEVA LÓGICA ---
 
   try {
-      const insertQuery = `
-          INSERT INTO bodega_materiales (material_id, tipo, cantidad, fecha, observaciones)
-          VALUES ($1, $2, $3, $4, $5)
-          RETURNING *;
-      `;
-      const values = [material_id, tipo, cantidad, fecha, observaciones || null];
+      const movimiento = await prisma.bodega_materiales.create({
+        data: {
+          material_id,
+          tipo,
+          cantidad,
+          fecha: new Date(fecha),
+          observaciones
+        }
+      });
       
-      const result = await pool.query(insertQuery, values);
-      
-      res.status(201).json(result.rows[0]);
+      res.status(201).json(movimiento);
       
   } catch (error) {
       console.error('Error en createBodegaMaterial:', error);
-      if (error.code === '23503') {
+      if (error.code === 'P2025') { // Error específico de Prisma para registro no encontrado
           return res.status(404).json({ message: `El material con id '${material_id}' no existe.` });
       }
       res.status(500).json({ message: 'Error del servidor al crear el movimiento.' });

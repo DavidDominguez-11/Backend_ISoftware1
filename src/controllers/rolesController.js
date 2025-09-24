@@ -1,17 +1,24 @@
-const pool = require('../config/db');
+const prisma = require('../prismaClient');
 
-const getAllRoles = async (req, res) => {
-    try {
-        const result = await pool.query('SELECT * FROM roles');
-        res.status(200).json({
-            roles: result.rows,
-        });
-    } catch (error) {
-        console.error('Error al obtener roles:', error);
-        res.status(500).json({ message: 'Error al obtener los roles' });
-    }
+const listRoles = async (req, res) => {
+  try {
+    const roles = await prisma.roles.findMany({ include: { roles_permisos: { include: { permiso: true } } } });
+    res.json(roles);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error listando roles' });
+  }
 };
 
-module.exports = {
-    getAllRoles,
+const createRole = async (req, res) => {
+  try {
+    const { rol } = req.body;
+    const r = await prisma.roles.create({ data: { rol } });
+    res.status(201).json(r);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error creando rol' });
+  }
 };
+
+module.exports = { listRoles, createRole };

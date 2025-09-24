@@ -12,8 +12,7 @@ services:
       - "5431:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/1_init.sql  # SQL inicial
-      - ./data.sql:/docker-entrypoint-initdb.d/2_data.sql
+      # Removed SQL files - using Prisma migrations instead
 
   backend:
     build: .  # Usa tu Dockerfile existente
@@ -21,7 +20,7 @@ services:
     ports:
       - "4000:4000"
     env_file:
-      - .env
+      - .env.docker
     environment:
       DB_HOST: postgres  # Usa el nombre del servicio de PostgreSQL
       POSTGRES_USER: usuario

@@ -1,5 +1,5 @@
 //controllers/proyectoMaterialController
-const pool = require('../config/db');
+const prisma = require('../prismaClient');
 
 /**
  * Obtiene todos los materiales asociados a proyectos que se encuentran en estado 'en progreso'.
@@ -132,8 +132,32 @@ const createProyectoMaterial = async (req, res) => {
     }
   };
   
-
+  const addProyectoMaterial = async (req, res) => {
+    try {
+      const { id_proyecto, id_material, ofertada = 0, en_obra = 0, reservado = 0 } = req.body;
+      const pm = await prisma.proyecto_material.create({
+        data: { id_proyecto, id_material, ofertada, en_obra, reservado }
+      });
+      res.status(201).json(pm);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Error añadiendo material al proyecto' });
+    }
+  };
+  
+  const listProyectoMaterials = async (req, res) => {
+    try {
+      const items = await prisma.proyecto_material.findMany({ include: { proyecto: true, material: true } });
+      res.json(items);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Error listando proyecto-material' });
+    }
+  };
+  
 module.exports = {
   getProyectoMaterialEnProgreso,
   createProyectoMaterial,
+  addProyectoMaterial,
+  listProyectoMaterials
 };

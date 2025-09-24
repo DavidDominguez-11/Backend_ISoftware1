@@ -1,0 +1,126 @@
+// Prisma schema for your database
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum tipo_movimiento_enum {
+  entrada
+  salida
+}
+
+enum estado_proyecto_enum {
+  solicitado
+  en_progreso
+  finalizado
+  cancelado
+}
+
+enum tipo_servicio_enum {
+  regulares
+  irregulares
+  remodelaciones
+  jacuzzis
+  paneles_solares
+  fuentes_y_cascadas
+}
+
+model roles {
+  id   Int    @id @default(autoincrement())
+  rol  String
+  usuarios_roles usuarios_roles[]
+  roles_permisos roles_permisos[]
+}
+
+model usuarios {
+  id         Int      @id @default(autoincrement())
+  nombre     String
+  email      String   @unique
+  contraseña String
+  telefonos  telefonos[]
+  usuarios_roles usuarios_roles[]
+}
+
+model telefonos {
+  id         Int    @id @default(autoincrement())
+  usuario_id Int
+  telefono   String
+  usuario    usuarios @relation(fields: [usuario_id], references: [id])
+}
+
+model permisos {
+  id   Int    @id @default(autoincrement())
+  permiso String
+  roles_permisos roles_permisos[]
+}
+
+model roles_permisos {
+  id         Int    @id @default(autoincrement())
+  rol_id     Int
+  permiso_id Int
+  rol        roles    @relation(fields: [rol_id], references: [id])
+  permiso    permisos @relation(fields: [permiso_id], references: [id])
+}
+
+model usuarios_roles {
+  id         Int    @id @default(autoincrement())
+  usuario_id Int
+  rol_id     Int
+  usuario    usuarios @relation(fields: [usuario_id], references: [id])
+  rol        roles    @relation(fields: [rol_id], references: [id])
+}
+
+model materiales {
+  id        Int    @id @default(autoincrement())
+  codigo    String
+  material  String
+  bodega_materiales bodega_materiales[]
+  proyecto_material proyecto_material[]
+}
+
+model bodega_materiales {
+  id          Int                 @id @default(autoincrement())
+  material_id Int
+  tipo        tipo_movimiento_enum
+  cantidad    Int
+  fecha       DateTime
+  observaciones String?
+  material    materiales @relation(fields: [material_id], references: [id])
+}
+
+model clientes {
+  id        Int    @id @default(autoincrement())
+  nombre    String
+  telefono  String
+  proyectos proyectos[]
+}
+
+model proyectos {
+  id           Int                  @id @default(autoincrement())
+  nombre       String
+  estado       estado_proyecto_enum
+  presupuesto  Float
+  cliente_id   Int
+  fecha_inicio DateTime
+  fecha_fin    DateTime?
+  ubicacion    String?
+  tipo_servicio tipo_servicio_enum
+  cliente      clientes @relation(fields: [cliente_id], references: [id])
+  proyecto_material proyecto_material[]
+}
+
+model proyecto_material {
+  id          Int    @id @default(autoincrement())
+  id_proyecto Int
+  id_material Int
+  ofertada    Int    @default(0)
+  en_obra     Int    @default(0)
+  reservado   Int    @default(0)
+  proyecto    proyectos  @relation(fields: [id_proyecto], references: [id])
+  material    materiales @relation(fields: [id_material], references: [id])
+}

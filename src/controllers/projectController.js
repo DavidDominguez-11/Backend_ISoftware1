@@ -1,6 +1,6 @@
 //controllers/projectController
 
-const pool = require('../config/db');
+const prisma = require('../prismaClient');
 
 // Enum con los valores permitidos para tipo_servicio
 const TIPO_SERVICIO_ENUM = [
@@ -15,13 +15,13 @@ const TIPO_SERVICIO_ENUM = [
 // Obtener todos los proyectos
 const getProjects = async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM proyectos');
+    const projects = await prisma.proyectos.findMany({ include: { cliente: true } });
     
-    if (result.rows.length === 0) {
+    if (projects.length === 0) {
       return res.status(404).json({ message: 'No se encontraron proyectos' });
     }
     
-    res.json(result.rows);
+    res.json(projects);
   } catch (error) {
     console.error('Error en getProjects:', error);
     res.status(500).json({ message: 'Error del servidor' });
@@ -33,16 +33,18 @@ const getProjects = async (req, res) => {
  */
 const getFinishedProjects = async (req, res) => {
   try {
-    const query = "SELECT * FROM proyectos WHERE estado = 'finalizado'";
-    const result = await pool.query(query);
+    const projects = await prisma.proyectos.findMany({ 
+      where: { estado: 'finalizado' },
+      include: { cliente: true } 
+    });
 
     // Si no se encuentran proyectos finalizados, devuelve un 404.
-    if (result.rows.length === 0) {
+    if (projects.length === 0) {
       return res.status(404).json({ message: 'No se encontraron proyectos finalizados' });
     }
 
     // Devolvemos la lista de proyectos.
-    res.json(result.rows);
+    res.json(projects);
 
   } catch (error) {
     console.error('Error en getFinishedProjects:', error);
@@ -55,11 +57,7 @@ const getFinishedProjects = async (req, res) => {
  */
 const getFinishedProjectsCount = async (req, res) => {
   try {
-    const query = "SELECT COUNT(*) FROM proyectos WHERE estado = 'finalizado'";
-    const result = await pool.query(query);
-
-    // El resultado de COUNT(*) es una cadena, lo convertimos a número.
-    const count = parseInt(result.rows[0].count, 10);
+    const count = await prisma.proyectos.count({ where: { estado: 'finalizado' } });
 
     // Devolvemos el conteo en un objeto JSON.
     res.json({ total_finalizados: count });
@@ -72,30 +70,17 @@ const getFinishedProjectsCount = async (req, res) => {
 
 const getInProgressProjects = async (req, res) => {
   try {
-    const query = `
-      SELECT 
-          p.id,
-          p.nombre AS proyecto,
-          p.estado,
-          p.presupuesto,
-          p.fecha_inicio,
-          p.fecha_fin,
-          p.ubicacion,
-          p.tipo_servicio,
-          u.nombre AS cliente,
-          u.email AS cliente_email
-      FROM proyectos p
-      JOIN usuarios u ON p.cliente_id = u.id
-      WHERE p.estado = 'en progreso';
-    `;
-    const result = await pool.query(query);
+    const projects = await prisma.proyectos.findMany({ 
+      where: { estado: 'en progreso' },
+      include: { cliente: true } 
+    });
 
     // Si no se encuentran proyectos en progreso, devuelve un 404.
-    if (result.rows.length === 0) {
+    if (projects.length === 0) {
       return res.status(404).json({ message: 'No se encontraron proyectos en progreso' });
     }
 
-    res.json(result.rows);
+    res.json(projects);
 
   } catch (error) {
     console.error('Error en getInProgressProjects:', error);
@@ -105,22 +90,24 @@ const getInProgressProjects = async (req, res) => {
 
 const getTotalProjectsByService = async (req, res) => {
   try {
-    const query = `
-      SELECT 
-          tipo_servicio AS servicio,
-          COUNT(*) AS proyectos
-      FROM proyectos
-      GROUP BY tipo_servicio
-      ORDER BY proyectos DESC;
-    `;
-    const result = await pool.query(query);
+    const projects = await prisma.proyectos.groupBy({
+      by: ['tipo_servicio'],
+      _count: {
+        tipo_servicio: true,
+      },
+      orderBy: {
+        _count: {
+          tipo_servicio: 'desc',
+        },
+      },
+    });
 
     // Si no se encuentran proyectos en progreso, devuelve un 404.
-    if (result.rows.length === 0) {
+    if (projects.length === 0) {
       return res.status(404).json({ message: 'No se encontraron proyectos en progreso' });
     }
 
-    res.json(result.rows);
+    res.json(projects);
 
   } catch (error) {
     console.error('Error en getTotlaProjectsByService:', error);
@@ -130,15 +117,9 @@ const getTotalProjectsByService = async (req, res) => {
 
 const getInProgressProjectsCount = async (req, res) => {
   try {
-    const query = `
-      SELECT COUNT(*) AS total
-      FROM proyectos
-      WHERE estado = 'en progreso';
-    `;
+    const count = await prisma.proyectos.count({ where: { estado: 'en progreso' } });
 
-    const result = await pool.query(query);
-
-    res.json({ total: parseInt(result.rows[0].total, 10) });
+    res.json({ total: count });
 
   } catch (error) {
     console.error('Error en getInProgressProjectsCount:', error);
@@ -149,48 +130,23 @@ const getInProgressProjectsCount = async (req, res) => {
 //post para crear PROYECTOS
 const createProject = async (req, res) => {
   try {
-    const {
-      nombre,
-      estado,
-      presupuesto,
-      cliente_id,
-      fecha_inicio,
-      fecha_fin,
-      ubicacion,
-      tipo_servicio
-    } = req.body;
-
-    // Validaciones mínimas
-    if (!nombre || !estado || !presupuesto || !cliente_id || !fecha_inicio || !tipo_servicio) {
-      return res.status(400).json({ message: 'Faltan campos obligatorios' });
-    }
-
-    const query = `
-      INSERT INTO proyectos 
-        (nombre, estado, presupuesto, cliente_id, fecha_inicio, fecha_fin, ubicacion, tipo_servicio)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      RETURNING *;
-    `;
-
-    const values = [
-      nombre,
-      estado,
-      presupuesto,
-      cliente_id,
-      fecha_inicio,
-      fecha_fin || null,
-      ubicacion || null,
-      tipo_servicio
-    ];
-
-    const result = await pool.query(query, values);
-
-    // Devolvemos el proyecto recién creado
+    const { nombre, estado, presupuesto, cliente_id, fecha_inicio, fecha_fin, ubicacion, tipo_servicio } = req.body;
+    const project = await prisma.proyectos.create({
+      data: {
+        nombre,
+        estado,
+        presupuesto,
+        cliente_id,
+        fecha_inicio: new Date(fecha_inicio),
+        fecha_fin: fecha_fin ? new Date(fecha_fin) : null,
+        ubicacion,
+        tipo_servicio
+      }
+    });
     res.status(201).json({
       message: 'Proyecto creado exitosamente',
-      proyecto: result.rows[0]
+      proyecto: project
     });
-
   } catch (error) {
     console.error('Error en createProject:', error);
     res.status(500).json({ message: 'Error del servidor' });
@@ -216,23 +172,20 @@ const updateProjectType = async (req, res) => {
   }
 
   try {
-      const query = `
-          UPDATE proyectos 
-          SET tipo_servicio = $1 
-          WHERE id = $2 
-          RETURNING *;
-      `;
-      const result = await pool.query(query, [tipo_servicio, id]);
+      const project = await prisma.proyectos.update({
+          where: { id: parseInt(id) },
+          data: { tipo_servicio },
+      });
 
       // 3. Verificar si el proyecto se encontró y se actualizó
-      if (result.rowCount === 0) {
+      if (!project) {
           return res.status(404).json({ message: `No se encontró un proyecto con el ID ${id}.` });
       }
 
       // 4. Enviar el proyecto actualizado como respuesta
       res.status(200).json({
           message: 'El tipo de proyecto fue actualizado exitosamente.',
-          proyecto: result.rows[0]
+          proyecto: project
       });
 
   } catch (error) {
@@ -252,14 +205,16 @@ const getProjectById = async (req, res) => {
   }
 
   try {
-    const query = 'SELECT * FROM proyectos WHERE id = $1';
-    const result = await pool.query(query, [parseInt(id)]);
+    const project = await prisma.proyectos.findUnique({ 
+      where: { id: parseInt(id) },
+      include: { cliente: true, proyecto_material: true } 
+    });
 
-    if (result.rows.length === 0) {
+    if (!project) {
       return res.status(404).json({ message: `No se encontró un proyecto con el ID ${id}.` });
     }
 
-    res.json(result.rows[0]);
+    res.json(project);
 
   } catch (error) {
     console.error('Error en getProjectById:', error);
@@ -329,17 +284,13 @@ const updateProjectStatus = async (req, res) => {
   }
 
   try {
-    const query = `
-      UPDATE proyectos 
-      SET estado = $1 
-      WHERE id = $2 
-      RETURNING *;
-    `;
-    
-    const result = await pool.query(query, [estado, parseInt(id)]);
+    const project = await prisma.proyectos.update({
+      where: { id: parseInt(id) },
+      data: { estado },
+    });
 
     // Verificar si el proyecto se encontró y se actualizó
-    if (result.rowCount === 0) {
+    if (!project) {
       return res.status(404).json({ 
         message: `No se encontró un proyecto con el ID ${id}.` 
       });
@@ -348,7 +299,7 @@ const updateProjectStatus = async (req, res) => {
     // Enviar el proyecto actualizado como respuesta
     res.status(200).json({
       message: 'Estado del proyecto actualizado exitosamente',
-      proyecto: result.rows[0]
+      proyecto: project
     });
 
   } catch (error) {
