@@ -473,6 +473,47 @@ const updateProjectById = async (req, res) => {
   }
 };
 
+/**
+ * Obtiene una lista detallada de materiales para todos los proyectos
+ * que se encuentran en estado 'solicitado' o 'en progreso'.
+ */
+const getProjectMaterials = async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        p.nombre AS proyecto,
+        m.codigo AS codigo,
+        m.material AS material,
+        pm.ofertada AS ofertado,
+        pm.en_obra AS en_obra,
+        GREATEST(0, pm.ofertada - pm.en_obra - pm.reservado) AS pendiente_compra,
+        pm.reservado AS pendiente_entrega
+      FROM 
+        proyectos p
+      JOIN 
+        proyecto_material pm ON p.id = pm.id_proyecto
+      JOIN 
+        materiales m ON pm.id_material = m.id
+      WHERE 
+        p.estado IN ('solicitado', 'en progreso')
+      ORDER BY 
+        p.nombre, m.codigo;
+    `;
+    
+    const result = await pool.query(query);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'No se encontraron materiales para proyectos activos.' });
+    }
+
+    res.json(result.rows);
+
+  } catch (error) {
+    console.error('Error en getProjectMaterials:', error);
+    res.status(500).json({ message: 'Error del servidor al obtener los materiales del proyecto.' });
+  }
+};
+
 module.exports = {
   getProjects,
   getFinishedProjects,
@@ -485,5 +526,6 @@ module.exports = {
   getProjectStatuses, 
   getProjectById,
   updateProjectStatus,
-  updateProjectById
+  updateProjectById,
+  getProjectMaterials
 };
