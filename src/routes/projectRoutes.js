@@ -31,5 +31,6 @@ router.get('/projects/projectById/:id', getProjectById);
 router.get('/projects/status-projects', getProjectStatuses);
 router.patch('/projects/:id/estado', updateProjectStatus);
 router.put('/projects/:id', updateProjectById);
+router.get('/projects/materials', getProjectMaterials);
 
 module.exports = router;
