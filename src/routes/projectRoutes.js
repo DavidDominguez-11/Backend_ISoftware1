@@ -15,7 +15,8 @@ const {
     getProjectStatuses,
     getProjectById,
     updateProjectStatus,
-    updateProjectById
+    updateProjectById,
+    getProjectMaterials
 } = require('../controllers/projectController');
 
 
