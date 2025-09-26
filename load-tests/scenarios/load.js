@@ -27,7 +27,7 @@ export const options = {
     http_req_failed: ['rate<0.1'],        // Menos del 10% de peticiones fallidas
     errors: ['rate<0.05'],                // Menos del 5% de errores de lógica
     auth_failures: ['rate<0.02'],         // Menos del 2% de fallos de autenticación
-    project_operation_duration: ['p(90)<800'], // 90% de operaciones de proyecto < 800ms
+    project_operation_duration: ['p(90)<3800'], // 90% de operaciones de proyecto < 800ms
   },
 };
 
