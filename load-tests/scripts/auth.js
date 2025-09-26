@@ -1,6 +1,6 @@
-// load-tests/scripts/auth.js
+// load-tests/scripts/auth.js (versión corregida)
 import { BASE_URL, endpoints, users } from '../config/config.js';
-import { check, sleep } from 'k6';
+import { check } from 'k6';
 import http from 'k6/http';
 
 export function authenticate() {
@@ -13,17 +13,26 @@ export function authenticate() {
   });
 
   const params = {
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
   };
 
   const res = http.post(url, payload, params);
   
-  check(res, {
+  const success = check(res, {
     'login successful': (r) => r.status === 200,
-    'received token': (r) => r.json().token !== undefined,
   });
 
-  return res.json().token;
+  // Si el login fue exitoso, intenta obtener el token
+  if (!success) {
+    return null; // Devuelve null si el login falló
+  }
+
+  // Ahora es más seguro acceder al JSON
+  const token = res.json('token'); // Usar el selector de k6 es más seguro
+  
+  check(res, {
+    'received token': () => token !== undefined && token !== null,
+  });
+
+  return token;
 }
