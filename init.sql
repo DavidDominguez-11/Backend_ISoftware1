@@ -18,12 +18,12 @@ END $$;
 GRANT ALL PRIVILEGES ON DATABASE test_db TO usuario;
 
 -- Definicion de Enums 
-CREATE TYPE tipo_movimiento_enum AS ENUM ('entrada', 'salida');
+CREATE TYPE tipo_movimiento_enum AS ENUM ('Entrada', 'Salida');
 
-CREATE TYPE estado_proyecto_enum AS ENUM ('solicitado', 'en progreso', 'finalizado', 'cancelado');
+CREATE TYPE estado_proyecto_enum AS ENUM ('Solicitado', 'En Progreso', 'Finalizado', 'Cancelado');
 
 -- Enum logico que se me ocurrio para esto 
-CREATE TYPE tipo_servicio_enum AS ENUM ('regulares', 'irregulares', 'remodelaciones', 'jacuzzis', 'paneles solares', 'fuentes y cascadas'); 
+CREATE TYPE tipo_servicio_enum AS ENUM ('Piscina Regular', 'Piscina Irregular', 'Remodelacion', 'Jacuzzi', 'Paneles Solares', 'Fuentes y Cascadas'); 
 
 -- Crear las tablas dentro de test_db
 CREATE TABLE IF NOT EXISTS roles (
@@ -72,16 +72,6 @@ CREATE TABLE IF NOT EXISTS materiales (
     material VARCHAR(255) NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS bodega_materiales (
-    id SERIAL PRIMARY KEY,
-    material_id INTEGER NOT NULL,
-    tipo tipo_movimiento_enum NOT NULL,
-    cantidad INTEGER NOT NULL,
-    fecha DATE NOT NULL,
-    observaciones TEXT,
-    FOREIGN KEY (material_id) REFERENCES materiales(id)
-);
-
 CREATE TABLE IF NOT EXISTS clientes (
     id SERIAL PRIMARY KEY,
     nombre VARCHAR(255) NOT NULL,
@@ -98,7 +88,31 @@ CREATE TABLE IF NOT EXISTS proyectos (
     fecha_fin DATE,
     ubicacion VARCHAR(255),
     tipo_servicio tipo_servicio_enum NOT NULL,
-    FOREIGN KEY (cliente_id) REFERENCES clientes(id)
+    FOREIGN KEY (cliente_id) REFERENCES clientes(id),
+    CONSTRAINT chk_fecha_fin_estado CHECK (
+        (estado IN ('Finalizado', 'Cancelado') AND fecha_fin IS NOT NULL) OR
+        (estado NOT IN ('Finalizado', 'Cancelado') AND fecha_fin IS NULL)
+    )
+);
+
+CREATE TABLE IF NOT EXISTS bodega_materiales (
+    id SERIAL PRIMARY KEY,
+    material_id INTEGER NOT NULL,
+    tipo tipo_movimiento_enum NOT NULL,
+    cantidad INTEGER NOT NULL,
+    fecha DATE NOT NULL,
+    observaciones TEXT,
+    proyecto_id INTEGER,
+    FOREIGN KEY (material_id) REFERENCES materiales(id),
+    FOREIGN KEY (proyecto_id) REFERENCES proyectos(id),
+    CONSTRAINT chk_signo_por_tipo CHECK (
+        (tipo = 'Entrada' AND cantidad > 0) OR
+        (tipo = 'Salida'  AND cantidad < 0)
+    ),
+    CONSTRAINT chk_bodega_tipo_proyecto CHECK (
+        (tipo = 'Entrada' AND proyecto_id IS NULL) OR
+        (tipo = 'Salida'  AND proyecto_id IS NOT NULL)
+    )
 );
 
 CREATE TABLE IF NOT EXISTS proyecto_material (
@@ -109,5 +123,6 @@ CREATE TABLE IF NOT EXISTS proyecto_material (
     en_obra INTEGER DEFAULT 0,
     reservado INTEGER DEFAULT 0,
     FOREIGN KEY (id_proyecto) REFERENCES proyectos(id),
-    FOREIGN KEY (id_material) REFERENCES materiales(id)
+    FOREIGN KEY (id_material) REFERENCES materiales(id),
+    UNIQUE (id_proyecto, id_material) -- evita duplicados
 );
