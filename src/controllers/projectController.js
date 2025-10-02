@@ -4,12 +4,12 @@ const pool = require('../config/db');
 
 // Enum con los valores permitidos para tipo_servicio
 const TIPO_SERVICIO_ENUM = [
-  'regulares',
-  'irregulares',
-  'remodelaciones',
-  'jacuzzis',
-  'paneles solares',
-  'fuentes y cascadas'
+  'Piscina Regular',
+  'Piscina Irregular',
+  'Remodelacion',
+  'Jacuzzi',
+  'Paneles Solares',
+  'Fuentes y Cascadas'
 ];
 
 // Obtener todos los proyectos
@@ -33,7 +33,7 @@ const getProjects = async (req, res) => {
  */
 const getFinishedProjects = async (req, res) => {
   try {
-    const query = "SELECT * FROM proyectos WHERE estado = 'finalizado'";
+    const query = "SELECT * FROM proyectos WHERE estado = 'Finalizado'";
     const result = await pool.query(query);
 
     // Si no se encuentran proyectos finalizados, devuelve un 404.
@@ -55,7 +55,7 @@ const getFinishedProjects = async (req, res) => {
  */
 const getFinishedProjectsCount = async (req, res) => {
   try {
-    const query = "SELECT COUNT(*) FROM proyectos WHERE estado = 'finalizado'";
+    const query = "SELECT COUNT(*) FROM proyectos WHERE estado = 'Finalizado'";
     const result = await pool.query(query);
 
     // El resultado de COUNT(*) es una cadena, lo convertimos a número.
@@ -86,7 +86,7 @@ const getInProgressProjects = async (req, res) => {
           u.email AS cliente_email
       FROM proyectos p
       JOIN usuarios u ON p.cliente_id = u.id
-      WHERE p.estado = 'en progreso';
+      WHERE p.estado = 'En Progreso';
     `;
     const result = await pool.query(query);
 
@@ -133,7 +133,7 @@ const getInProgressProjectsCount = async (req, res) => {
     const query = `
       SELECT COUNT(*) AS total
       FROM proyectos
-      WHERE estado = 'en progreso';
+      WHERE estado = 'En Progreso';
     `;
 
     const result = await pool.query(query);
@@ -297,10 +297,10 @@ const getProjectStatuses = async (req, res) => {
 // PATCH para proyecto/id/estado PATCH para actualizar el estado de un proyecto 
 const updateProjectStatus = async (req, res) => {
   const ESTADO_PROYECTO_ENUM = [
-    'solicitado',
-    'en progreso', 
-    'finalizado',
-    'cancelado'
+    'Solicitado',
+    'En Progreso', 
+    'Finalizado',
+    'Cancelado'
   ];
   const { id } = req.params;
   const { estado } = req.body;
@@ -398,10 +398,10 @@ const updateProjectById = async (req, res) => {
 
   // Validaciones específicas
   const ESTADO_PROYECTO_ENUM = [
-    'solicitado',
-    'en progreso',
-    'finalizado',
-    'cancelado'
+    'Solicitado',
+    'En Progreso', 
+    'Finalizado',
+    'Cancelado'
   ];
 
   if (estado !== undefined && !ESTADO_PROYECTO_ENUM.includes(estado)) {
@@ -495,7 +495,7 @@ const getProjectMaterials = async (req, res) => {
       JOIN 
         materiales m ON pm.id_material = m.id
       WHERE 
-        p.estado IN ('solicitado', 'en progreso')
+        p.estado IN ('Solicitado', 'En Progreso')
       ORDER BY 
         p.nombre, m.codigo;
     `;
