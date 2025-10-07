@@ -505,6 +505,51 @@ const getProjectMaterials = async (req, res) => {
   }
 };
 
+/**
+ * Obtiene la cantidad de proyectos por cada tipo de servicio para un estado específico.
+ * @param {string} req.params.estado - El estado por el cual filtrar los proyectos.
+ */
+const getProjectCountByServiceAndStatus = async (req, res) => {
+  // 1. Obtenemos el estado desde los parámetros de la URL (ej: /En Progreso)
+  const { estado } = req.params;
+
+  // 2. Validamos que el estado sea uno de los permitidos para evitar errores.
+  if (!ESTADO_PROYECTO_ENUM.includes(estado)) {
+    return res.status(400).json({
+      message: 'El estado proporcionado no es válido.',
+      valores_permitidos: ESTADO_PROYECTO_ENUM,
+      recibido: estado
+    });
+  }
+
+  try {
+    // 3. Creamos la consulta SQL parametrizada para seguridad (evita SQL Injection)
+    const query = `
+      SELECT 
+        tipo_servicio AS servicio,
+        COUNT(*) AS cantidad
+      FROM 
+        proyectos
+      WHERE 
+        estado = $1
+      GROUP BY 
+        tipo_servicio
+      ORDER BY
+        cantidad DESC;
+    `;
+    
+    // 4. Ejecutamos la consulta pasando el estado como parámetro seguro
+    const result = await pool.query(query, [estado]);
+
+    // 5. Devolvemos el resultado. Si no hay proyectos con ese estado, devolverá un array vacío [].
+    res.json(result.rows);
+
+  } catch (error) {
+    console.error('Error en getProjectCountByServiceAndStatus:', error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+};
+
 module.exports = {
   getProjects,
   getFinishedProjects,
@@ -518,5 +563,6 @@ module.exports = {
   getProjectById,
   updateProjectStatus,
   updateProjectById,
-  getProjectMaterials
+  getProjectMaterials,
+  getProjectCountByServiceAndStatus
 };

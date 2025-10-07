@@ -16,7 +16,8 @@ const {
     getProjectById,
     updateProjectStatus,
     updateProjectById,
-    getProjectMaterials
+    getProjectMaterials,
+    getProjectCountByServiceAndStatus
 } = require('../controllers/projectController');
 
 
@@ -33,5 +34,5 @@ router.get('/projects/status-projects', getProjectStatuses);
 router.patch('/projects/:id/estado', updateProjectStatus);
 router.put('/projects/:id', updateProjectById);
 router.get('/projects/materials', getProjectMaterials);
-
+router.get('/projects/:estado/count', getProjectCountByServiceAndStatus);
 module.exports = router;
