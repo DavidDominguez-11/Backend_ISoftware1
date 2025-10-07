@@ -294,69 +294,65 @@ const getProjectStatuses = async (req, res) => {
   }
 };
 
-// PATCH para proyecto/id/estado PATCH para actualizar el estado de un proyecto 
+// PATCH /projects/:id/estado  (ajusta el prefix si usas /services)
 const updateProjectStatus = async (req, res) => {
-  const ESTADO_PROYECTO_ENUM = [
-    'Solicitado',
-    'En Progreso', 
-    'Finalizado',
-    'Cancelado'
-  ];
+  const ESTADO_PROYECTO_ENUM = ['Solicitado','En Progreso','Finalizado','Cancelado'];
   const { id } = req.params;
   const { estado } = req.body;
 
-  // Validar que el ID sea un número
   if (isNaN(id) || !Number.isInteger(Number(id))) {
-    return res.status(400).json({ 
-      message: 'El ID debe ser un número entero válido',
-      received: id
-    });
+    return res.status(400).json({ message: 'El ID debe ser un número entero válido', received: id });
   }
-
-  // Validar que el estado fue enviado
-  if (!estado) {
-    return res.status(400).json({ 
-      message: 'El campo "estado" es requerido' 
-    });
-  }
-
-  // Validar que el estado sea uno de los permitidos
+  if (!estado) return res.status(400).json({ message: 'El campo "estado" es requerido' });
   if (!ESTADO_PROYECTO_ENUM.includes(estado)) {
-    return res.status(400).json({ 
-      message: 'Valor de estado no válido',
-      valores_permitidos: ESTADO_PROYECTO_ENUM 
-    });
+    return res.status(400).json({ message: 'Valor de estado no válido', valores_permitidos: ESTADO_PROYECTO_ENUM, recibido: estado });
   }
 
   try {
     const query = `
-      UPDATE proyectos 
-      SET estado = $1 
-      WHERE id = $2 
+      UPDATE proyectos
+      SET estado    = $1::estado_proyecto_enum,
+          fecha_fin = CASE
+            WHEN $1::estado_proyecto_enum IN ('Finalizado','Cancelado') THEN COALESCE(fecha_fin, CURRENT_DATE)
+            ELSE NULL
+          END
+      WHERE id = $2::int
       RETURNING *;
     `;
-    
-    const result = await pool.query(query, [estado, parseInt(id)]);
+    const result = await pool.query(query, [estado, Number(id)]);
 
-    // Verificar si el proyecto se encontró y se actualizó
     if (result.rowCount === 0) {
-      return res.status(404).json({ 
-        message: `No se encontró un proyecto con el ID ${id}.` 
+      return res.status(404).json({ message: `No se encontró un proyecto con el ID ${id}.` });
+    }
+
+    return res.status(200).json({
+      message: 'Estado del proyecto actualizado exitosamente',
+      proyecto: result.rows[0],
+    });
+  } catch (error) {
+    console.error('PG ERROR updateProjectStatus =>', {
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint,
+      message: error.message,
+      stack: error.stack,
+    });
+
+    if (error.code === '23514') { // check_violation
+      return res.status(400).json({
+        message: 'Violación de restricción: fecha_fin debe existir si estado es Finalizado/Cancelado y ser NULL en otros estados.',
+        constraint: error.constraint,
+      });
+    }
+    if (error.code === '22P02') { // invalid_text_representation (enum inválido)
+      return res.status(400).json({
+        message: 'Valor inválido para estado (ENUM). Debe coincidir exactamente.',
+        valores_permitidos: ESTADO_PROYECTO_ENUM,
+        recibido: estado,
       });
     }
 
-    // Enviar el proyecto actualizado como respuesta
-    res.status(200).json({
-      message: 'Estado del proyecto actualizado exitosamente',
-      proyecto: result.rows[0]
-    });
-
-  } catch (error) {
-    console.error('Error en updateProjectStatus:', error);
-    res.status(500).json({ 
-      message: 'Error del servidor al actualizar el estado del proyecto',
-      error: error.message 
-    });
+    return res.status(500).json({ message: 'Error del servidor al actualizar el estado del proyecto', code: error.code });
   }
 };
 

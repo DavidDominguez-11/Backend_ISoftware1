@@ -42,7 +42,7 @@ const createBodegaMaterial = async (req, res) => {
   if (!material_id || !tipo || !cantidad || !fecha) {
       return res.status(400).json({ message: 'Faltan campos obligatorios: material_id, tipo, cantidad, fecha.' });
   }
-  if (tipo !== 'entrada' && tipo !== 'salida') {
+  if (tipo !== 'Entrada' && tipo !== 'Salida') {
       return res.status(400).json({ message: `El tipo de movimiento '${tipo}' no es válido.` });
   }
   if (cantidad <= 0) {
@@ -50,7 +50,7 @@ const createBodegaMaterial = async (req, res) => {
   }
 
   // --- NUEVA LÓGICA DE VALIDACIÓN DE STOCK ---
-  if (tipo === 'salida') {
+  if (tipo === 'Salida') {
       try {
           // Calculamos el stock actual para ese material.
           const stockQuery = `
