@@ -12,6 +12,8 @@ const TIPO_SERVICIO_ENUM = [
   'Fuentes y Cascadas'
 ];
 
+const ESTADO_PROYECTO_ENUM = ['Solicitado','En Progreso','Finalizado','Cancelado']; 
+
 // Obtener todos los proyectos
 const getProjects = async (req, res) => {
   try {
@@ -296,7 +298,6 @@ const getProjectStatuses = async (req, res) => {
 
 // PATCH /projects/:id/estado  (ajusta el prefix si usas /services)
 const updateProjectStatus = async (req, res) => {
-  const ESTADO_PROYECTO_ENUM = ['Solicitado','En Progreso','Finalizado','Cancelado'];
   const { id } = req.params;
   const { estado } = req.body;
 
@@ -359,115 +360,109 @@ const updateProjectStatus = async (req, res) => {
 // PUT actualizar proyecto por ID (actualización parcial de campos permitidos)
 const updateProjectById = async (req, res) => {
   const { id } = req.params;
-
   if (isNaN(id) || !Number.isInteger(Number(id))) {
-    return res.status(400).json({
-      message: 'El ID debe ser un número entero válido',
-      received: id
-    });
+    return res.status(400).json({ message: 'El ID debe ser un número entero válido', received: id });
   }
 
   const {
     nombre,
-    estado,
+    estado,          // puede venir o no
     presupuesto,
     cliente_id,
-    fecha_inicio,
-    fecha_fin,
+    fecha_inicio,    // YYYY-MM-DD (opcional)
+    fecha_fin,       // YYYY-MM-DD o null (opcional)
     ubicacion,
     tipo_servicio
   } = req.body;
 
-  // Verificar que al menos un campo se haya proporcionado
-  if (
-    nombre === undefined &&
-    estado === undefined &&
-    presupuesto === undefined &&
-    cliente_id === undefined &&
-    fecha_inicio === undefined &&
-    fecha_fin === undefined &&
-    ubicacion === undefined &&
-    tipo_servicio === undefined
-  ) {
+  // Nada que actualizar
+  if ([nombre, estado, presupuesto, cliente_id, fecha_inicio, fecha_fin, ubicacion, tipo_servicio]
+      .every(v => v === undefined)) {
     return res.status(400).json({ message: 'No se proporcionaron campos para actualizar' });
   }
 
-  // Validaciones específicas
-  const ESTADO_PROYECTO_ENUM = [
-    'Solicitado',
-    'En Progreso', 
-    'Finalizado',
-    'Cancelado'
-  ];
-
+  // Validaciones ligeras
   if (estado !== undefined && !ESTADO_PROYECTO_ENUM.includes(estado)) {
-    return res.status(400).json({
-      message: 'Valor de estado no válido',
-      valores_permitidos: ESTADO_PROYECTO_ENUM
-    });
+    return res.status(400).json({ message: 'Valor de estado no válido', valores_permitidos: ESTADO_PROYECTO_ENUM, recibido: estado });
   }
-
   if (tipo_servicio !== undefined && !TIPO_SERVICIO_ENUM.includes(tipo_servicio)) {
-    return res.status(400).json({
-      message: 'Valor de tipo_servicio no válido',
-      valores_permitidos: TIPO_SERVICIO_ENUM
-    });
+    return res.status(400).json({ message: 'Valor de tipo_servicio no válido', valores_permitidos: TIPO_SERVICIO_ENUM, recibido: tipo_servicio });
   }
-
   if (presupuesto !== undefined && (isNaN(presupuesto) || Number(presupuesto) < 0)) {
     return res.status(400).json({ message: 'El presupuesto debe ser un número mayor o igual a 0' });
   }
+  if (cliente_id !== undefined && (isNaN(cliente_id) || !Number.isInteger(Number(cliente_id)))) {
+    return res.status(400).json({ message: 'El cliente_id debe ser un número entero válido', recibido: cliente_id });
+  }
 
   try {
-    // Validar existencia de cliente si se envía cliente_id
     if (cliente_id !== undefined) {
-      if (isNaN(cliente_id) || !Number.isInteger(Number(cliente_id))) {
-        return res.status(400).json({ message: 'El cliente_id debe ser un número entero válido' });
-      }
-      const checkCliente = await pool.query('SELECT 1 FROM clientes WHERE id = $1', [parseInt(cliente_id)]);
+      const checkCliente = await pool.query('SELECT 1 FROM clientes WHERE id = $1', [Number(cliente_id)]);
       if (checkCliente.rowCount === 0) {
         return res.status(400).json({ message: `El cliente_id ${cliente_id} no existe` });
       }
     }
 
-    // Construcción dinámica del SET
-    const fields = [];
-    const values = [];
-    let idx = 1;
+    // 1) Siempre actualizamos estado y fecha_fin juntos con lógica segura
+    const sets = [
+      // nuevo_estado: si no se envía estado, conserva el actual
+      `estado = COALESCE($1, estado)::estado_proyecto_enum`,
+      // fecha_fin depende del nuevo_estado; si final/cancelado: usa fecha_fin enviada, o la existente, o CURRENT_DATE
+      `fecha_fin = CASE
+         WHEN COALESCE($1, estado)::estado_proyecto_enum IN ('Finalizado','Cancelado')
+           THEN COALESCE($2::date, fecha_fin, CURRENT_DATE)
+         ELSE NULL
+       END`
+    ];
+    const vals = [ estado ?? null, fecha_fin ?? null ];
+    let idx = 3;
 
-    if (nombre !== undefined) { fields.push(`nombre = $${idx++}`); values.push(nombre); }
-    if (estado !== undefined) { fields.push(`estado = $${idx++}`); values.push(estado); }
-    if (presupuesto !== undefined) { fields.push(`presupuesto = $${idx++}`); values.push(presupuesto); }
-    if (cliente_id !== undefined) { fields.push(`cliente_id = $${idx++}`); values.push(parseInt(cliente_id)); }
-    if (fecha_inicio !== undefined) { fields.push(`fecha_inicio = $${idx++}`); values.push(fecha_inicio); }
-    if (fecha_fin !== undefined) { fields.push(`fecha_fin = $${idx++}`); values.push(fecha_fin); }
-    if (ubicacion !== undefined) { fields.push(`ubicacion = $${idx++}`); values.push(ubicacion); }
-    if (tipo_servicio !== undefined) { fields.push(`tipo_servicio = $${idx++}`); values.push(tipo_servicio); }
+    // 2) Campos opcionales adicionales
+    if (nombre !== undefined)        { sets.push(`nombre = $${idx}`);                     vals.push(nombre); idx++; }
+    if (presupuesto !== undefined)   { sets.push(`presupuesto = $${idx}`);                vals.push(Number(presupuesto)); idx++; }
+    if (cliente_id !== undefined)    { sets.push(`cliente_id = $${idx}`);                 vals.push(Number(cliente_id)); idx++; }
+    if (fecha_inicio !== undefined)  { sets.push(`fecha_inicio = $${idx}::date`);         vals.push(fecha_inicio); idx++; }
+    if (ubicacion !== undefined)     { sets.push(`ubicacion = $${idx}`);                  vals.push(ubicacion); idx++; }
+    if (tipo_servicio !== undefined) { sets.push(`tipo_servicio = $${idx}::tipo_servicio_enum`); vals.push(tipo_servicio); idx++; }
 
     const query = `
       UPDATE proyectos
-      SET ${fields.join(', ')}
+      SET ${sets.join(', ')}
       WHERE id = $${idx}
       RETURNING *;
     `;
+    vals.push(Number(id));
 
-    values.push(parseInt(id));
-
-    const result = await pool.query(query, values);
-
+    const result = await pool.query(query, vals);
     if (result.rowCount === 0) {
       return res.status(404).json({ message: `No se encontró un proyecto con el ID ${id}.` });
     }
 
-    return res.status(200).json({
-      message: 'Proyecto actualizado exitosamente',
-      proyecto: result.rows[0]
-    });
+    return res.status(200).json({ message: 'Proyecto actualizado exitosamente', proyecto: result.rows[0] });
   } catch (error) {
-    console.error('Error en updateProjectById:', error);
-    return res.status(500).json({ message: 'Error del servidor al actualizar el proyecto', error: error.message });
+    console.error('PG ERROR updateProjectById =>', {
+      code: error.code, detail: error.detail, constraint: error.constraint, message: error.message,
+    });
+
+    if (error.code === '23514') {
+      return res.status(400).json({
+        message: 'Violación de restricción: fecha_fin debe existir si estado es Finalizado/Cancelado y ser NULL en otros estados.',
+        constraint: error.constraint,
+      });
+    }
+    if (error.code === '22P02') {
+      return res.status(400).json({
+        message: 'Valor inválido para ENUM (estado/tipo_servicio). Debe coincidir exactamente.',
+        estado_permitidos: ESTADO_PROYECTO_ENUM,
+        tipo_permitidos: TIPO_SERVICIO_ENUM,
+      });
+    }
+
+    return res.status(500).json({ message: 'Error del servidor al actualizar el proyecto', code: error.code });
   }
 };
+
+
 
 /**
  * Obtiene una lista detallada de materiales para todos los proyectos
