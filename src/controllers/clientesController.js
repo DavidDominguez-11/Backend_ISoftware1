@@ -58,4 +58,19 @@ const createCliente = async (req, res) => {
   }
 };
 
-module.exports = { getClientes, createCliente };
+const getClientsCount = async (req, res) => {
+  try {
+    const result = await pool.query('SELECT COUNT(*) AS total_clientes FROM clientes;');
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'No se encontraron clientes' });
+    }
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error en getClientsCount:', error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+};
+
+module.exports = { getClientes, createCliente, getClientsCount };
