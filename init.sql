@@ -1,4 +1,6 @@
--- Crear la base de datos solo si no existe
+-- ============================================
+-- CREACIÓN DE BASE DE DATOS Y USUARIO
+-- ============================================
 DO $$ 
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'test_db') THEN
@@ -6,7 +8,6 @@ BEGIN
     END IF;
 END $$;
 
--- Crear el usuario 'usuario' solo si no existe
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'usuario') THEN
@@ -14,18 +15,18 @@ BEGIN
     END IF;
 END $$;
 
--- Otorgar privilegios al usuario sobre la base de datos
 GRANT ALL PRIVILEGES ON DATABASE test_db TO usuario;
 
--- Definicion de Enums 
+-- ============================================
+-- TIPOS ENUM
+-- ============================================
 CREATE TYPE tipo_movimiento_enum AS ENUM ('Entrada', 'Salida');
-
 CREATE TYPE estado_proyecto_enum AS ENUM ('Solicitado', 'En Progreso', 'Finalizado', 'Cancelado');
+CREATE TYPE tipo_servicio_enum AS ENUM ('Piscina Regular', 'Piscina Irregular', 'Remodelacion', 'Jacuzzi', 'Paneles Solares', 'Fuentes y Cascadas');
 
--- Enum logico que se me ocurrio para esto 
-CREATE TYPE tipo_servicio_enum AS ENUM ('Piscina Regular', 'Piscina Irregular', 'Remodelacion', 'Jacuzzi', 'Paneles Solares', 'Fuentes y Cascadas'); 
-
--- Crear las tablas dentro de test_db
+-- ============================================
+-- TABLAS DE SEGURIDAD (USUARIOS / ROLES / PERMISOS)
+-- ============================================
 CREATE TABLE IF NOT EXISTS roles (
     id SERIAL PRIMARY KEY,
     rol VARCHAR(255) NOT NULL
@@ -66,6 +67,9 @@ CREATE TABLE IF NOT EXISTS usuarios_roles (
     FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
 );
 
+-- ============================================
+-- TABLAS PRINCIPALES (CLIENTES / PROYECTOS / MATERIALES)
+-- ============================================
 CREATE TABLE IF NOT EXISTS materiales (
     id SERIAL PRIMARY KEY,
     codigo VARCHAR(255) NOT NULL,
@@ -95,6 +99,9 @@ CREATE TABLE IF NOT EXISTS proyectos (
     )
 );
 
+-- ============================================
+-- TABLAS DE BODEGA Y RELACIONES DE MATERIALES
+-- ============================================
 CREATE TABLE IF NOT EXISTS bodega_materiales (
     id SERIAL PRIMARY KEY,
     material_id INTEGER NOT NULL,
@@ -119,10 +126,45 @@ CREATE TABLE IF NOT EXISTS proyecto_material (
     id SERIAL PRIMARY KEY,
     id_proyecto INTEGER NOT NULL,
     id_material INTEGER NOT NULL,
-    ofertada INTEGER DEFAULT 0,
-    en_obra INTEGER DEFAULT 0,
-    reservado INTEGER DEFAULT 0,
+    ofertada INTEGER DEFAULT 0 CHECK (ofertada >= 0),
+    en_obra INTEGER DEFAULT 0 CHECK (en_obra >= 0),
+    reservado INTEGER DEFAULT 0 CHECK (reservado >= 0),
     FOREIGN KEY (id_proyecto) REFERENCES proyectos(id),
     FOREIGN KEY (id_material) REFERENCES materiales(id),
-    UNIQUE (id_proyecto, id_material) -- evita duplicados
+    UNIQUE (id_proyecto, id_material)
 );
+
+-- ============================================
+-- TRIGGER PARA CONTROL AUTOMÁTICO DE FECHA_FIN
+-- ============================================
+
+CREATE OR REPLACE FUNCTION actualizar_fecha_fin()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Si el proyecto pasa a Finalizado o Cancelado
+    IF (NEW.estado IN ('Finalizado', 'Cancelado')) THEN
+        -- Si el usuario intenta asignar una fecha manual diferente a la actual → error
+        IF NEW.fecha_fin IS NOT NULL AND NEW.fecha_fin <> CURRENT_DATE THEN
+            RAISE EXCEPTION 'No se puede asignar manualmente una fecha_fin distinta a la fecha actual cuando el proyecto está Finalizado o Cancelado.';
+        END IF;
+
+        -- Si no tiene fecha_fin, se asigna automáticamente la actual
+        NEW.fecha_fin := CURRENT_DATE;
+
+    -- Si el proyecto NO está Finalizado/Cancelado, aseguramos que no tenga fecha_fin
+    ELSE
+        IF NEW.fecha_fin IS NOT NULL THEN
+            NEW.fecha_fin := NULL;
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_actualizar_fecha_fin
+BEFORE INSERT OR UPDATE ON proyectos
+FOR EACH ROW
+EXECUTE FUNCTION actualizar_fecha_fin();
+
+
