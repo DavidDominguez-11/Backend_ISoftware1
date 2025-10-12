@@ -10,20 +10,33 @@ jest.mock('jsonwebtoken', () => ({
   })
 }));
 
-// Mock de la base de datos
-jest.mock('../src/config/db', () => ({
-  query: jest.fn(),
-  rowCount: 1
+// Mock de Prisma en lugar de pool.query
+jest.mock('../src/prismaClient', () => ({
+  usuarios: {
+    findUnique: jest.fn()
+  },
+  roles: {
+    findUnique: jest.fn()
+  },
+  usuarios_roles: {
+    findFirst: jest.fn(),
+    create: jest.fn()
+  }
 }));
 
-const pool = require('../src/config/db');
+const prisma = require('../src/prismaClient');
 
 describe('User Role Assignment Tests (ROLE1)', () => {
   let authToken;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    pool.query.mockResolvedValue({ rows: [], rowCount: 0 });
+    
+    // Mock responses for Prisma
+    prisma.usuarios.findUnique.mockResolvedValue({ id: 3, nombre: 'Luis Ramírez' });
+    prisma.roles.findUnique.mockResolvedValue({ id: 2, nombre: 'Supervisor' });
+    prisma.usuarios_roles.findFirst.mockResolvedValue(null); // No existing relationship
+    prisma.usuarios_roles.create.mockResolvedValue({ usuario_id: 3, rol_id: 2 });
     
     // Token de administrador (ana.lopez@mail.com)
     authToken = jwt.sign(
@@ -34,21 +47,6 @@ describe('User Role Assignment Tests (ROLE1)', () => {
 
   describe('Asignación de Roles', () => {
     it('debería completar el flujo completo de asignación de rol', async () => {
-      // Mock de las respuestas de base de datos en orden
-      const mockResponses = [
-        { rows: [{ id: 3, nombre: 'Luis Ramírez' }], rowCount: 1 }, // Verifica usuario
-        { rows: [{ id: 2, nombre: 'Supervisor' }], rowCount: 1 }, // Verifica rol
-        { rows: [], rowCount: 0 }, // Verifica si ya tiene el rol
-        { rows: [{ usuario_id: 3, rol_id: 2 }], rowCount: 1 } // Inserta relación
-      ];
-
-      let mockIndex = 0;
-      pool.query.mockImplementation(() => {
-        const response = mockResponses[mockIndex];
-        mockIndex++;
-        return Promise.resolve(response);
-      });
-
       // 2. Realizar asignación de rol - Usando cookie en lugar de Bearer token
       const response = await request(app)
         .post('/services/register-user-rol')
@@ -62,32 +60,15 @@ describe('User Role Assignment Tests (ROLE1)', () => {
       expect(response.status).toBe(200);
       expect(response.body.message).toBe('Roles asignados correctamente al usuario.');
 
-      // 4. Verificar las llamadas a la base de datos
-      expect(pool.query).toHaveBeenCalledTimes(4); // Usuario, Rol, Existe, Insertar
-
-      // Verificar la llamada para buscar el usuario
-      expect(pool.query).toHaveBeenNthCalledWith(1, 
-        'SELECT * FROM usuarios WHERE id = $1', 
-        [3]
-      );
-
-      // Verificar la llamada para buscar el rol
-      expect(pool.query).toHaveBeenNthCalledWith(2,
-        'SELECT * FROM roles WHERE id = $1',
-        [2]
-      );
-
-      // Verificar la llamada para comprobar si existe la relación
-      expect(pool.query).toHaveBeenNthCalledWith(3,
-        'SELECT * FROM usuarios_roles WHERE usuario_id = $1 AND rol_id = $2',
-        [3, 2]
-      );
-
-      // Verificar la llamada para insertar la relación
-      expect(pool.query).toHaveBeenNthCalledWith(4,
-        'INSERT INTO usuarios_roles (usuario_id, rol_id) VALUES ($1, $2)',
-        [3, 2]
-      );
+      // 4. Verificar las llamadas a Prisma
+      expect(prisma.usuarios.findUnique).toHaveBeenCalledWith({ where: { id: 3 } });
+      expect(prisma.roles.findUnique).toHaveBeenCalledWith({ where: { id: 2 } });
+      expect(prisma.usuarios_roles.findFirst).toHaveBeenCalledWith({
+        where: { usuario_id: 3, rol_id: 2 }
+      });
+      expect(prisma.usuarios_roles.create).toHaveBeenCalledWith({
+        data: { usuario_id: 3, rol_id: 2 }
+      });
     });
   });
 });
