@@ -311,6 +311,23 @@ const updateProjectStatus = async (req, res) => {
   }
 };
 
+// Debug endpoint to see project data
+const debugProjects = async (req, res) => {
+  try {
+    const projects = await prisma.proyectos.findMany({ 
+      include: { cliente: true } 
+    });
+    console.log('DEBUG: All projects in database:', JSON.stringify(projects, null, 2));
+    res.json({
+      count: projects.length,
+      projects: projects
+    });
+  } catch (error) {
+    console.error('Debug error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   getProjects,
   getFinishedProjects,
@@ -322,5 +339,6 @@ module.exports = {
   updateProjectType,
   getProjectStatuses, 
   getProjectById,
-  updateProjectStatus
+  updateProjectStatus,
+  debugProjects
 };

@@ -8,31 +8,16 @@ WORKDIR /app
 COPY package*.json ./
 
 # Instala dependencias
-RUN npm ci --only=production
-
-# Copia el esquema de Prisma
-COPY prisma ./prisma/
-
-# Genera el cliente de Prisma
-RUN npx prisma generate
+RUN npm install
 
 # Copia todo el código fuente
 COPY . .
 
+# Genera el cliente de Prisma
+RUN npx prisma generate
+
 # Puerto expuesto (el mismo que en server.js)
-EXPOSE 4000
+EXPOSE 3000
 
-# Crea el script de inicio
-RUN echo '#!/bin/sh' > /app/start.sh && \
-    echo 'echo "Waiting for database..."' >> /app/start.sh && \
-    echo 'sleep 5' >> /app/start.sh && \
-    echo 'echo "Running Prisma migrations..."' >> /app/start.sh && \
-    echo 'npx prisma db push --accept-data-loss' >> /app/start.sh && \
-    echo 'echo "Seeding database..."' >> /app/start.sh && \
-    echo 'node src/seed.js || echo "Seeding failed or already done"' >> /app/start.sh && \
-    echo 'echo "Starting application..."' >> /app/start.sh && \
-    echo 'npm start' >> /app/start.sh && \
-    chmod +x /app/start.sh
-
-# Comando para iniciar el servidor
-CMD ["/app/start.sh"]
+# Comando para iniciar el servidor directamente con wait
+CMD ["sh", "-c", "sleep 10 && npx prisma db push && node src/seed.js && npm run dev"]

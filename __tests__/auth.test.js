@@ -17,7 +17,7 @@ describe('Auth Controller Tests', () => {
     pool.query.mockResolvedValue({ rows: [] });
   });
 
-  describe('POST /services/auth/register', () => {
+  describe('POST /services/auth/register', () => { //si deberia de servir xdnt
     it('debería registrar un nuevo usuario exitosamente', async () => {
       const userData = {
         Fullname: 'Juan Pérez',

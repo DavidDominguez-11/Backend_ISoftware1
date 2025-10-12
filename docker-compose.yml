@@ -1,35 +1,44 @@
-version: '3.8'
-
 services:
+  # PostgreSQL Database
   postgres:
-    image: postgres:15-alpine
+    image: postgres:16
     container_name: my-postgres
     environment:
-      POSTGRES_USER: usuario
-      POSTGRES_PASSWORD: secret
-      POSTGRES_DB: test_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: backend_db
     ports:
       - "5431:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # Removed SQL files - using Prisma migrations instead
+    networks:
+      - app-network
 
+  # Backend Application
   backend:
-    build: .  # Usa tu Dockerfile existente
-    container_name: my-backend
-    ports:
-      - "4000:4000"
-    env_file:
-      - .env.docker
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: backend-app
     environment:
-      DB_HOST: postgres  # Usa el nombre del servicio de PostgreSQL
-      POSTGRES_USER: usuario
-      POSTGRES_PASSWORD: secret
-      POSTGRES_DB: test_db
-      PORT_DB: 5432  # Puerto interno del contenedor PostgreSQL
-      SERVER_PORT_TEST: 4000  # Puerto para la aplicación Node.js
+      NODE_ENV: development
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/backend_db
+      SERVER_PORT_TEST: 3000
+      JWT_SECRET: tu_secreto_super_seguro
+    ports:
+      - "3000:3000"
     depends_on:
       - postgres
+    networks:
+      - app-network
+    volumes:
+      - .:/app
+      - /app/node_modules
+    restart: unless-stopped
 
 volumes:
   postgres_data:
+
+networks:
+  app-network:
+    driver: bridge
