@@ -155,15 +155,16 @@ INSERT INTO proyecto_material (id_proyecto, id_material, ofertada, en_obra, rese
 
 -- Proyecto 4: Paneles Solares Residencial Las Palmas
 (4, 7, 50, 20, 0),  -- Mortero
-(4, 10, 10, 0, 0), -- Tubería PVC
+(4, 10, 10, 0, 0); -- Tubería PVC
 
 -- Proyecto 5: Piscina Hotel Mar y Sol (finalizado)
-(5, 8, 15, 15, 0); -- Azulejo
+-- (5, 8, 15, 15, 0); -- Azulejo
 
 -- PARA PROBAR STOCK BAJO
 INSERT INTO materiales (codigo, material) VALUES
 ('PRB01', 'Prueba Cemento Bajo'),
 ('PRB02', 'Prueba Arena Bajo');
+
 
 -- Agrega movimientos en bodega para estos materiales
 -- Material 1: stock insuficiente

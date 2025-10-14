@@ -550,6 +550,43 @@ const getProjectCountByServiceAndStatus = async (req, res) => {
   }
 };
 
+/**
+ * Elimina un proyecto por su ID.
+ */
+const deleteProject = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 1. Validar que el ID es un número entero válido
+    if (isNaN(id) || !Number.isInteger(Number(id))) {
+      return res.status(400).json({ 
+        message: 'El ID del proyecto debe ser un número entero válido.' 
+      });
+    }
+
+    // 2. Ejecutar la consulta DELETE en la base de datos
+    const query = 'DELETE FROM proyectos WHERE id = $1';
+    const result = await pool.query(query, [id]);
+
+    // 3. Verificar si se eliminó alguna fila. 
+    // Si rowCount es 0, significa que no se encontró un proyecto con ese ID.
+    if (result.rowCount === 0) {
+      return res.status(404).json({ 
+        message: `No se encontró un proyecto con el ID ${id}.` 
+      });
+    }
+
+    // 4. Enviar una respuesta de éxito
+    res.status(200).json({ 
+      message: 'Proyecto eliminado exitosamente' 
+    });
+
+  } catch (error) {
+    console.error('Error en deleteProject:', error);
+    res.status(500).json({ message: 'Error del servidor al eliminar el proyecto.' });
+  }
+};
+
 module.exports = {
   getProjects,
   getFinishedProjects,
@@ -564,5 +601,6 @@ module.exports = {
   updateProjectStatus,
   updateProjectById,
   getProjectMaterials,
-  getProjectCountByServiceAndStatus
+  getProjectCountByServiceAndStatus,
+  deleteProject
 };

@@ -168,3 +168,21 @@ FOR EACH ROW
 EXECUTE FUNCTION actualizar_fecha_fin();
 
 
+CREATE OR REPLACE FUNCTION verificar_estado_proyecto_antes_de_asignar_material()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_estado_proyecto estado_proyecto_enum;
+BEGIN
+    SELECT estado INTO v_estado_proyecto FROM proyectos WHERE id = NEW.id_proyecto;
+    IF v_estado_proyecto IN ('Finalizado', 'Cancelado') THEN
+        RAISE EXCEPTION 'No se pueden asignar o modificar materiales para el proyecto ID % porque su estado es "%".', NEW.id_proyecto, v_estado_proyecto;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_validar_estado_proyecto_on_material ON proyecto_material;
+CREATE TRIGGER trg_validar_estado_proyecto_on_material
+BEFORE INSERT OR UPDATE ON proyecto_material
+FOR EACH ROW
+EXECUTE FUNCTION verificar_estado_proyecto_antes_de_asignar_material();
