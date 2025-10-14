@@ -46,7 +46,10 @@ INSERT INTO roles_permisos (rol_id, permiso_id) VALUES
 (2, 11),  -- crear_reporte
 (2, 12),  -- eliminar_reporte
 (2, 13),  -- ver_alertas
+(2, 9),   -- editar_proyecto
 (2, 6);   -- editar_inventario
+
+
 --Asistente
 INSERT INTO roles_permisos (rol_id, permiso_id) VALUES
 (3, 13);  -- ver_alertas
@@ -88,18 +91,22 @@ INSERT INTO clientes (nombre, telefono) VALUES
 INSERT INTO proyectos (nombre, estado, presupuesto, cliente_id, fecha_inicio, fecha_fin, ubicacion, tipo_servicio) VALUES
 -- 1 solicitado
 ('Piscina Residencial Ana Pérez', 'Solicitado', 12000.00, 3, '2025-10-01', NULL, 'Zona 10, Ciudad', 'Piscina Irregular'),
+
 -- 3 en progreso
 ('Piscina Hotel Costa Azul', 'En Progreso', 55000.00, 1, '2025-08-15', NULL, 'Playa Azul', 'Piscina Regular'),
 ('Jacuzzi Club Náutico del Lago', 'En Progreso', 15000.00, 5, '2025-09-01', NULL, 'Lago Central', 'Jacuzzi'),
 ('Paneles Solares Residencial Las Palmas', 'En Progreso', 20000.00, 2, '2025-09-10', NULL, 'Zona 14, Ciudad', 'Paneles Solares'),
+
 -- 5 finalizados
-('Piscina Hotel Mar y Sol', 'Finalizado', 60000.00, 7, '2025-01-05', '2025-03-10', 'Playa Dorada', 'Piscina Regular'),
-('Jacuzzi Jorge Martínez', 'Finalizado', 12000.00, 8, '2025-02-01', '2025-02-20', 'Zona 11, Ciudad', 'Jacuzzi'),
-('Piscina Complejo Recreativo Oasis', 'Finalizado', 45000.00, 9, '2025-03-15', '2025-06-01', 'Suburbio', 'Piscina Irregular'),
-('Piscina Lucía Gómez', 'Finalizado', 18000.00, 6, '2025-04-01', '2025-05-15', 'Zona 12, Ciudad', 'Piscina Irregular'),
-('Paneles Solares Valeria Sánchez', 'Finalizado', 22000.00, 10, '2025-05-01', '2025-07-10', 'Zona 13, Ciudad', 'Paneles Solares'),
--- 1 cancelado
-('Piscina Carlos Ramírez', 'Cancelado', 15000.00, 4, '2025-09-01', '2025-09-10', 'Zona 9, Ciudad', 'Piscina Regular');
+('Piscina Hotel Mar y Sol', 'Finalizado', 60000.00, 7, '2025-01-05', NULL, 'Playa Dorada', 'Piscina Regular'),
+('Jacuzzi Jorge Martínez', 'Finalizado', 12000.00, 8, '2025-02-01', NULL, 'Zona 11, Ciudad', 'Jacuzzi'),
+('Piscina Complejo Recreativo Oasis', 'Finalizado', 45000.00, 9, '2025-03-15', NULL, 'Suburbio', 'Piscina Irregular'),
+('Piscina Lucía Gómez', 'Finalizado', 18000.00, 6, '2025-04-01', NULL, 'Zona 12, Ciudad', 'Piscina Irregular'),
+('Paneles Solares Valeria Sánchez', 'Finalizado', 22000.00, 10, '2025-05-01', NULL, 'Zona 13, Ciudad', 'Paneles Solares'),
+
+-- 1 cancelado 
+('Piscina Carlos Ramírez', 'Cancelado', 15000.00, 4, '2025-09-01', NULL, 'Zona 9, Ciudad', 'Piscina Regular');
+
 
 -- BODEGA_MOVIMIENTOS
 -- Entradas a bodega
