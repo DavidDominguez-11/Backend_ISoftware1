@@ -184,10 +184,48 @@ const getTotalCantidad = async (req, res) => {
     }
 };
 
+const getAlertasMateriales = async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                m.id,
+                m.codigo,
+                m.material,
+                COALESCE(SUM(bm.cantidad), 0) AS cantidad_actual,
+                COALESCE(SUM(pm.ofertada), 0) AS cantidad_necesaria
+            FROM 
+                materiales m
+            LEFT JOIN 
+                bodega_materiales bm ON bm.material_id = m.id
+            LEFT JOIN 
+                proyecto_material pm ON pm.id_material = m.id
+            GROUP BY 
+                m.id, m.codigo, m.material
+            HAVING 
+                COALESCE(SUM(bm.cantidad), 0) < COALESCE(SUM(pm.ofertada), 0)
+            ORDER BY 
+                m.codigo;
+        `;
+
+        const result = await pool.query(query);
+
+        if (result.rows.length === 0) {
+            return res.status(200).json({ message: 'No hay materiales con bajo stock' });
+        }
+
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error al obtener alertas de materiales:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
+};
+
+
 module.exports = {
     getMateriales,
     getMaterialById,
     deleteMaterial,
     createMateriales,
-    getTotalCantidad
+    getTotalCantidad,
+    getAlertasMateriales
 };
