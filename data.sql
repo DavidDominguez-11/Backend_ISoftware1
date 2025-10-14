@@ -151,3 +151,24 @@ INSERT INTO proyecto_material (id_proyecto, id_material, ofertada, en_obra, rese
 
 -- Proyecto 5: Piscina Hotel Mar y Sol (finalizado)
 (5, 8, 15, 15, 0); -- Azulejo
+
+-- PARA PROBAR STOCK BAJO
+INSERT INTO materiales (codigo, material) VALUES
+('PRB01', 'Prueba Cemento Bajo'),
+('PRB02', 'Prueba Arena Bajo');
+
+-- Agrega movimientos en bodega para estos materiales
+-- Material 1: stock insuficiente
+INSERT INTO bodega_materiales (material_id, tipo, cantidad, fecha, observaciones) VALUES
+((SELECT id FROM materiales WHERE codigo='PRB01'), 'Entrada', 10, '2025-10-13', 'Stock bajo para prueba');
+
+-- Material 2: stock suficiente
+INSERT INTO bodega_materiales (material_id, tipo, cantidad, fecha, observaciones) VALUES
+((SELECT id FROM materiales WHERE codigo='PRB02'), 'Entrada', 200, '2025-10-13', 'Stock suficiente');
+
+-- Relacionar con proyecto para que disminuya stock actual
+INSERT INTO proyecto_material (id_proyecto, id_material, ofertada, en_obra, reservado) VALUES
+-- PRB01 tiene 15 en obra, más que el stock de 10 -> alertas
+((SELECT id FROM proyectos LIMIT 1), (SELECT id FROM materiales WHERE codigo='PRB01'), 15, 15, 0),
+-- PRB02 tiene 50 en obra, menos que stock 200 -> no alertas
+((SELECT id FROM proyectos LIMIT 1), (SELECT id FROM materiales WHERE codigo='PRB02'), 50, 50, 0);
