@@ -557,33 +557,59 @@ const deleteProject = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // 1. Validar que el ID es un número entero válido
     if (isNaN(id) || !Number.isInteger(Number(id))) {
-      return res.status(400).json({ 
-        message: 'El ID del proyecto debe ser un número entero válido.' 
+      return res.status(400).json({
+        message: "El ID del proyecto debe ser un número entero válido.",
       });
     }
 
-    // 2. Ejecutar la consulta DELETE en la base de datos
-    const query = 'DELETE FROM proyectos WHERE id = $1';
-    const result = await pool.query(query, [id]);
+    const existeProyecto = await pool.query(
+      "SELECT id FROM proyectos WHERE id = $1",
+      [id]
+    );
 
-    // 3. Verificar si se eliminó alguna fila. 
-    // Si rowCount es 0, significa que no se encontró un proyecto con ese ID.
+    if (existeProyecto.rowCount === 0) {
+      return res.status(404).json({
+        message: `No se encontró un proyecto con el ID ${id}.`,
+      });
+    }
+
+    const dependencias = await pool.query(
+      `
+      SELECT 
+        (SELECT COUNT(*) FROM proyecto_material WHERE id_proyecto = $1) AS materiales,
+        (SELECT COUNT(*) FROM bodega_materiales WHERE proyecto_id = $1) AS movimientos
+      `,
+      [id]
+    );
+
+    const { materiales, movimientos } = dependencias.rows[0];
+
+    if (materiales > 0 || movimientos > 0) {
+      return res.status(400).json({
+        message:
+          "No se puede eliminar este proyecto porque tiene materiales o movimientos asociados.",
+      });
+    }
+
+    const result = await pool.query("DELETE FROM proyectos WHERE id = $1", [id]);
+
     if (result.rowCount === 0) {
-      return res.status(404).json({ 
-        message: `No se encontró un proyecto con el ID ${id}.` 
+      return res.status(404).json({
+        message: `No se encontró un proyecto con el ID ${id}.`,
       });
     }
 
-    // 4. Enviar una respuesta de éxito
-    res.status(200).json({ 
-      message: 'Proyecto eliminado exitosamente' 
+    res.status(200).json({
+      message: "Proyecto eliminado exitosamente.",
     });
 
   } catch (error) {
-    console.error('Error en deleteProject:', error);
-    res.status(500).json({ message: 'Error del servidor al eliminar el proyecto.' });
+    console.error("Error en deleteProject:", error);
+    res.status(500).json({
+      message:
+        "Error del servidor al eliminar el proyecto. Verifica si tiene relaciones o intenta nuevamente.",
+    });
   }
 };
 
