@@ -185,13 +185,14 @@ export function getProjectById(projectId) {
 
 // Actualizar estado de proyecto
 export function updateProjectStatus(projectId, newStatus) {
-  if (!projectId || !newStatus) {
-    console.log('Missing projectId or newStatus for updateProjectStatus');
+  if (!projectId) {
+    console.log('Missing projectId for updateProjectStatus');
     return null;
   }
 
   const url = `${BASE_URL}${replaceEndpointId(endpoints.updateProjectStatus, projectId)}`;
-  const payload = JSON.stringify({ estado: newStatus });
+  const status = newStatus || projectUpdateData.estados[Math.floor(Math.random() * projectUpdateData.estados.length)];
+  const payload = JSON.stringify({ estado: status });
   const res = http.patch(url, payload, params);
   
   check(res, {
@@ -203,17 +204,47 @@ export function updateProjectStatus(projectId, newStatus) {
 
 // Actualizar tipo de servicio de proyecto
 export function updateProjectType(projectId, newType) {
-  if (!projectId || !newType) {
-    console.log('Missing projectId or newType for updateProjectType');
+  if (!projectId) {
+    console.log('Missing projectId for updateProjectType');
     return null;
   }
 
   const url = `${BASE_URL}${replaceEndpointId(endpoints.updateProjectType, projectId)}`;
-  const payload = JSON.stringify({ tipo_servicio: newType });
+  const type = newType || projectUpdateData.tipos_servicio[Math.floor(Math.random() * projectUpdateData.tipos_servicio.length)];
+  const payload = JSON.stringify({ tipo_servicio: type });
   const res = http.patch(url, payload, params);
   
   check(res, {
     'update project type response': (r) => r.status === 200 || r.status === 400 || r.status === 404,
+  });
+
+  return res;
+}
+
+// Actualizar proyecto completo por ID
+export function updateProjectById(projectId, updateData = null) {
+  if (!projectId) {
+    console.log('Missing projectId for updateProjectById');
+    return null;
+  }
+
+  const url = `${BASE_URL}${replaceEndpointId(endpoints.updateProject, projectId)}`;
+  const dataToSend = updateData || {
+    nombre: `Proyecto Actualizado ${Math.floor(Math.random() * 10000)}`,
+    estado: projectUpdateData.estados[Math.floor(Math.random() * projectUpdateData.estados.length)],
+    tipo_servicio: projectUpdateData.tipos_servicio[Math.floor(Math.random() * projectUpdateData.tipos_servicio.length)],
+    presupuesto: Math.floor(Math.random() * 100000) + 50000,
+    cliente_id: Math.floor(Math.random() * 10) + 1, // Usando el rango correcto según tu DB
+    fecha_inicio: new Date().toISOString().split('T')[0],
+    fecha_fin: null,
+    ubicacion: 'Zona de Pruebas, Guatemala',
+  };
+  
+  const payload = JSON.stringify(dataToSend);
+  const res = http.put(url, payload, params);
+  
+  check(res, {
+    'update project response': (r) => r.status === 200 || r.status === 400 || r.status === 404,
   });
 
   return res;
