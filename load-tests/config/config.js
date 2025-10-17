@@ -23,29 +23,58 @@ export const endpoints = {
   projectById: '/services/projects/projectById/{id}',
   updateProjectStatus: '/services/projects/{id}/estado',
   updateProjectType: '/services/projects/{id}/tipo',
-  updateProject: '/services/projects/{id}'
+  updateProject: '/services/projects/{id}',
+
+  // Materiales endpoints
+  materiales: '/services/materiales',
+  materialesTotalCantidad: '/services/materiales/total-cantidad',
+  materialesAlertas: '/services/materiales/alertas',
+  materialById: '/services/materiales/{id}',
+  deleteMaterial: '/services/materiales/{id}',
+  
+  // Bodega materiales endpoints
+  bodegaMateriales: '/services/bodega-materiales',
 };
 
 export const users = [
   { email: 'admin@ejemplo.com', password: 'admin' },
-  { email: 'gerente@ejemplo.com', password: 'gerente' },
-  { email: 'secretaria@ejemplo.com', password: 'secretaria' },
   { email: 'ingeniero@ejemplo.com', password: 'ingeniero' },
+  { email: 'secretaria@ejemplo.com', password: 'secretaria' },
 ];
 
 export const projectData = {
   nombre: `Proyecto Test ${Math.floor(Math.random() * 10000)}`,
   estado: 'solicitado',
   presupuesto: Math.floor(Math.random() * 100000) + 50000,
-  cliente_id: Math.floor(Math.random() * 4) + 1, // IDs del 1 al 4 según tus datos
+  cliente_id: Math.floor(Math.random() * 10) + 1, // IDs del 1 al 10 según tu data.sql
   fecha_inicio: new Date().toISOString().split('T')[0],
   fecha_fin: null,
   ubicacion: 'Zona de Pruebas, Guatemala',
   tipo_servicio: ['regulares', 'irregulares', 'remodelaciones', 'jacuzzis', 'paneles solares', 'fuentes y cascadas'][Math.floor(Math.random() * 6)]
 };
 
+export const materialesData = {
+  codigo: `TMP${Math.floor(Math.random() * 1000)}`,
+  material: `Material Test ${Math.floor(Math.random() * 10000)}`,
+  descripcion: 'Material para pruebas de carga',
+  cantidad: Math.floor(Math.random() * 100) + 10,
+  unidad_medida: ['pieza', 'litro', 'kg', 'm', 'm2', 'm3'][Math.floor(Math.random() * 6)],
+  precio_unitario: Math.floor(Math.random() * 500) + 50,
+  estado_material_id: Math.floor(Math.random() * 3) + 1,
+  proveedor_id: Math.floor(Math.random() * 3) + 1,
+};
+
+export const bodegaMaterialesData = {
+  material_id: 1, // ID del material existente en tu base de datos
+  tipo: ['Entrada', 'Salida'][Math.floor(Math.random() * 2)], // Campo correcto según tu DB
+  cantidad: Math.floor(Math.random() * 50) + 1,
+  fecha: new Date().toISOString().split('T')[0], // Campo correcto según tu DB
+  observaciones: 'Movimiento generado para pruebas de carga',
+  proyecto_id: null // Opcional, solo para salidas
+};
+
 export const projectUpdateData = {
-  estados: ['solicitado', 'en progreso', 'finalizado', 'cancelado'],
+  estados: ['Solicitado', 'En Progreso', 'Finalizado', 'Cancelado'], // Nombres correctos según tu DB
   tipos_servicio: ['regulares', 'irregulares', 'remodelaciones', 'jacuzzis', 'paneles solares', 'fuentes y cascadas']
 };
 
