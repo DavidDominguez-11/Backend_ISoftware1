@@ -53,6 +53,7 @@ const registerUser = async (req, res) => {
 // LOGIN
 const loginUser = async (req, res) => {
   const { email, password } = req.body;
+
   try {
     console.log('Login attempt:', req.body);
     // Validar usuario
@@ -91,6 +92,7 @@ const loginUser = async (req, res) => {
       secretTOKEN_SIGN,
       { expiresIn: '1d' }
     );
+
     // Guardar token en cookie
     res.cookie('token', token, {
       httpOnly: true,
@@ -98,6 +100,7 @@ const loginUser = async (req, res) => {
       sameSite: 'lax',
       maxAge: 24 * 60 * 60 * 1000,
     });
+
     // Respuesta
     res.json({
       id: user.id,
@@ -106,6 +109,7 @@ const loginUser = async (req, res) => {
       roles,
       permisos,
     });
+
   } catch (error) {
     console.error('Error en login:', error);
     res.status(500).json({ message: 'Error al iniciar sesión' });
@@ -115,18 +119,24 @@ const loginUser = async (req, res) => {
 // VERIFY TOKEN
 const verifyToken = (req, res) => {
   console.log('--- INICIO DE VERIFICACIÓN DE TOKEN ---');
+
   const token = req.cookies.token;
   console.log('[VERIFY] Token recibido:', token ? 'Sí' : 'No');
+
   if (!token) {
     console.log('[VERIFY-ERROR] No hay token en la cookie');
     return res.status(401).json({ message: 'No autenticado' });
   }
+
   jwt.verify(token, secretTOKEN_SIGN, (err, decoded) => {
     if (err) {
       console.log('[VERIFY-ERROR] Token inválido:', err.message);
       return res.status(401).json({ message: 'Token inválido' });
     }
+
     console.log('[VERIFY] Token válido. Datos del usuario en token:', decoded);
+
+    // Retornar directamente la info que viene en el JWT
     res.json({
       id: decoded.id,
       email: decoded.email,
@@ -134,6 +144,7 @@ const verifyToken = (req, res) => {
       roles: decoded.roles,
       permisos: decoded.permisos
     });
+
     console.log('--- FIN DE VERIFICACIÓN DE TOKEN ---');
   });
 };

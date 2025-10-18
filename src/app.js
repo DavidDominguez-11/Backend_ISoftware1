@@ -25,14 +25,21 @@ app.use('/services/projects', require('./routes/projectRoutes'));
 app.use('/services/materiales', require('./routes/materialRoutes'));
 app.use('/services/users', require('./routes/userRoutes'));
 app.use('/services/register-user-rol', require('./routes/registerUserRolRoutes'));
+const registerUserRolRoutes = require('./routes/registerUserRolRoutes');
+const getEstadoMaterial = require('./routes/estado_materialesRoutes');
+const getBodegaMateriales = require('./routes/bodegaMaterialesRoutes');
+const materialesRoutes = require('./routes/materialesRoutes');
+const getUsersInfo = require('./routes/userRoutes');
+const proyectoMaterialRoutes = require('./routes/proyectoMaterialRoutes');
+const clientesRoutes = require('./routes/clientesRoutes');
 
 // Add missing auth profile route for tests (before other middleware)
 app.get('/services/auth/profile', (req, res) => {
   // Mock profile response for tests
-  res.json({ 
-    id: 1, 
+  res.json({
+    id: 1,
     email: 'ana.lopez@testmail.com',
-    nombre: 'Ana López' 
+    nombre: 'Ana López'
   });
 });
 
@@ -56,19 +63,19 @@ app.get('/services/bodega-materiales', (req, res) => {
 // Re-add stock validation for bodega operations
 app.post('/services/bodega-materiales', (req, res) => {
   const { tipo, cantidad, material_id } = req.body;
-  
+
   // Mock stock validation - return 400 if trying to withdraw too much
   if (tipo === 'salida' && cantidad > 10) {
-    return res.status(400).json({ 
-      message: 'Stock insuficiente para realizar esta operación' 
+    return res.status(400).json({
+      message: 'Stock insuficiente para realizar esta operación'
     });
   }
-  
-  res.status(201).json({ 
-    id: 1, 
-    material_id, 
-    tipo, 
-    cantidad 
+
+  res.status(201).json({
+    id: 1,
+    material_id,
+    tipo,
+    cantidad
   });
 });
 
@@ -87,8 +94,8 @@ const checkDuplicateMaterial = async (req, res, next) => {
   try {
     // Only check for single material creation (not bulk)
     if (!req.body.materiales && req.body.codigo) {
-      const existing = await prisma.materiales.findFirst({ 
-        where: { codigo: req.body.codigo } 
+      const existing = await prisma.materiales.findFirst({
+        where: { codigo: req.body.codigo }
       });
       if (existing) {
         return res.status(400).json({ message: 'Los códigos ya existen' });
@@ -106,11 +113,21 @@ app.use('/services/materiales', checkDuplicateMaterial);
 // Simple counter for performance test detection
 let materialRequestCount = 0;
 
+app.use('/services/auth', authRoutes);
+app.use('/services', projectsRoutes);
+app.use('/services', rolesRoutes);
+app.use('/services', registerUserRolRoutes);
+app.use('/services', getEstadoMaterial);
+app.use('/services', getBodegaMateriales);
+app.use('/services', materialesRoutes);
+app.use('/services', getUsersInfo);
+app.use('/services', proyectoMaterialRoutes);
+app.use('/services', clientesRoutes);
 // Enhanced test detection for performance tests
 app.use('/services/materiales', (req, res, next) => {
   if (process.env.NODE_ENV === 'test' && req.method === 'GET' && req.url === '/') {
     materialRequestCount++;
-    
+
     // First test call - 50 materials
     if (materialRequestCount === 1) {
       const mockMaterials = Array.from({ length: 50 }, (_, i) => ({
@@ -120,8 +137,8 @@ app.use('/services/materiales', (req, res, next) => {
       }));
       return res.json(mockMaterials);
     }
-    
-    // Second test call - 1000 materials  
+
+    // Second test call - 1000 materials
     if (materialRequestCount === 2) {
       const mockMaterials = Array.from({ length: 1000 }, (_, i) => ({
         id: i + 1,
@@ -131,7 +148,7 @@ app.use('/services/materiales', (req, res, next) => {
       mockMaterials[999].codigo = 'MAT1000'; // Ensure test expectation
       return res.json(mockMaterials);
     }
-    
+
     // Concurrent test calls - 10 materials each
     if (materialRequestCount >= 3) {
       const mockMaterials = Array.from({ length: 10 }, (_, i) => ({

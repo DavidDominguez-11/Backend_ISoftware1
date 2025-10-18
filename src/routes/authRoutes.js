@@ -1,3 +1,4 @@
+// routes/authRoutes
 const express = require('express');
 const router = express.Router();
 const { registerUser, loginUser, verifyToken, logoutUser } = require('../controllers/authController');
