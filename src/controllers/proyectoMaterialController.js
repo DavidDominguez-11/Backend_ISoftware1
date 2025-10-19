@@ -7,40 +7,60 @@ const prisma = require('../prismaClient');
  */
 const getProyectoMaterialEnProgreso = async (req, res) => {
   try {
-    // Consulta SQL para seleccionar los materiales de proyectos en progreso
-    const query = `
-      SELECT
-        pm.id,
-        pm.id_proyecto,
-        p.nombre AS nombre_proyecto,
-        p.estado AS estado_proyecto,
-        pm.id_material,
-        m.codigo AS codigo_material,
-        m.material AS nombre_material,
-        pm.ofertada,
-        pm.en_obra,
-        pm.reservado
-      FROM
-        proyecto_material pm
-      JOIN
-        proyectos p ON pm.id_proyecto = p.id
-      JOIN
-        materiales m ON pm.id_material = m.id
-      WHERE
-        p.estado = 'en progreso'
-      ORDER BY
-        p.nombre, m.material;
-    `;
-
-    const result = await pool.query(query);
+    const proyectoMateriales = await prisma.proyecto_material.findMany({
+      where: {
+        proyecto: {
+          estado: 'en_progreso'
+        }
+      },
+      include: {
+        proyecto: {
+          select: {
+            nombre: true,
+            estado: true
+          }
+        },
+        material: {
+          select: {
+            codigo: true,
+            material: true
+          }
+        }
+      },
+      orderBy: [
+        {
+          proyecto: {
+            nombre: 'asc'
+          }
+        },
+        {
+          material: {
+            material: 'asc'
+          }
+        }
+      ]
+    });
 
     // Si no se encuentran registros, se devuelve un 404
-    if (result.rows.length === 0) {
+    if (proyectoMateriales.length === 0) {
       return res.status(404).json({ message: 'No se encontraron materiales para proyectos en progreso' });
     }
 
-    // Se envían los resultados en formato JSON
-    res.json(result.rows);
+    // Transformar datos al formato esperado
+    const result = proyectoMateriales.map(pm => ({
+      id: pm.id,
+      id_proyecto: pm.id_proyecto,
+      nombre_proyecto: pm.proyecto.nombre,
+      estado_proyecto: pm.proyecto.estado,
+      id_material: pm.id_material,
+      codigo_material: pm.material.codigo,
+      nombre_material: pm.material.material,
+      ofertada: pm.ofertada,
+      en_obra: pm.en_obra,
+      reservado: pm.reservado
+    }));
+
+    res.json(result);
 
   } catch (error) {
     console.error('Error en getProyectoMaterialEnProgreso:', error);
@@ -55,89 +75,95 @@ const getProyectoMaterialEnProgreso = async (req, res) => {
  * La operación se realiza dentro de una transacción para garantizar la atomicidad.
  */
 const createProyectoMaterial = async (req, res) => {
-    // Se espera un array de proyectos, cada uno con sus materiales
-    const proyectosConMateriales = req.body;
-  
-    // Validación inicial: debe ser un array no vacío
-    if (!Array.isArray(proyectosConMateriales) || proyectosConMateriales.length === 0) {
-      return res.status(400).json({ message: 'El cuerpo de la solicitud debe ser una lista de proyectos no vacía.' });
-    }
-  
-    const client = await pool.connect();
-  
-    try {
-      // Iniciar la transacción
-      await client.query('BEGIN');
-  
-      const insertedRows = [];
-  
+  // Se espera un array de proyectos, cada uno con sus materiales
+  const proyectosConMateriales = req.body;
+
+  // Validación inicial: debe ser un array no vacío
+  if (!Array.isArray(proyectosConMateriales) || proyectosConMateriales.length === 0) {
+    return res.status(400).json({ message: 'El cuerpo de la solicitud debe ser una lista de proyectos no vacía.' });
+  }
+
+  try {
+    const insertedRows = await prisma.$transaction(async (prisma) => {
+      const allInsertedRows = [];
+
       // Iterar sobre cada proyecto en la lista
       for (const proyecto of proyectosConMateriales) {
         const { id_proyecto, materiales } = proyecto;
-  
+
         // Validar la estructura de cada objeto de proyecto
         if (!id_proyecto || !Array.isArray(materiales) || materiales.length === 0) {
-          await client.query('ROLLBACK');
-          return res.status(400).json({
-            message: `Cada elemento en la lista debe tener un "id_proyecto" y una lista de "materiales" no vacía.`,
-            objetoConError: proyecto
-          });
+          throw new Error(`Cada elemento en la lista debe tener un "id_proyecto" y una lista de "materiales" no vacía.`);
         }
-  
+
+        // Verificar que el proyecto existe
+        const proyectoExistente = await prisma.proyectos.findUnique({
+          where: { id: parseInt(id_proyecto) }
+        });
+
+        if (!proyectoExistente) {
+          throw new Error(`El proyecto con ID ${id_proyecto} no existe.`);
+        }
+
         // Iterar sobre cada material del proyecto para insertarlo
         for (const material of materiales) {
           const { id_material, ofertada } = material;
-  
+
           // Validar que los campos obligatorios existan y sean correctos en cada material
           if (!id_material || ofertada === undefined || typeof ofertada !== 'number' || ofertada < 0) {
-            await client.query('ROLLBACK');
-            return res.status(400).json({
-              message: `Cada material debe tener 'id_material' y un valor numérico no negativo para 'ofertada'.`,
-              objetoConError: material
-            });
+            throw new Error(`Cada material debe tener 'id_material' y un valor numérico no negativo para 'ofertada'.`);
           }
-  
-          const insertQuery = `
-            INSERT INTO proyecto_material (id_proyecto, id_material, ofertada, en_obra, reservado)
-            VALUES ($1, $2, $3, 0, 0)
-            RETURNING *;
-          `;
-          const values = [id_proyecto, id_material, ofertada];
-  
-          const result = await client.query(insertQuery, values);
-          insertedRows.push(result.rows[0]);
+
+          // Verificar que el material existe
+          const materialExistente = await prisma.materiales.findUnique({
+            where: { id: parseInt(id_material) }
+          });
+
+          if (!materialExistente) {
+            throw new Error(`El material con ID ${id_material} no existe.`);
+          }
+
+          // Crear la relación proyecto-material
+          const nuevoProyectoMaterial = await prisma.proyecto_material.create({
+            data: {
+              id_proyecto: parseInt(id_proyecto),
+              id_material: parseInt(id_material),
+              ofertada: ofertada,
+              en_obra: 0,
+              reservado: 0
+            }
+          });
+
+          allInsertedRows.push(nuevoProyectoMaterial);
         }
       }
-  
-      // Si todas las inserciones son exitosas, confirmar la transacción
-      await client.query('COMMIT');
-  
-      // Retornar todos los registros creados
-      res.status(201).json(insertedRows);
-  
-    } catch (error) {
-      // En caso de cualquier error, deshacer la transacción
-      await client.query('ROLLBACK');
-      console.error('Error en createProyectoMaterial:', error);
-  
-      // Manejar error específico de violación de clave foránea
-      if (error.code === '23503') {
-        return res.status(404).json({ message: 'Error de clave foránea. Verifique que el id_proyecto y todos los id_material existan.' });
-      }
-  
-      res.status(500).json({ message: 'Error del servidor al registrar los materiales.' });
-    } finally {
-      // Liberar el cliente de la pool, independientemente del resultado
-      client.release();
+
+      return allInsertedRows;
+    });
+
+    // Retornar todos los registros creados
+    res.status(201).json(insertedRows);
+
+  } catch (error) {
+    console.error('Error en createProyectoMaterial:', error);
+
+    // Manejar errores específicos de Prisma
+    if (error.code === 'P2002') {
+      return res.status(409).json({ message: 'Ya existe una relación entre este proyecto y material.' });
     }
-  };
-  
+    if (error.code === 'P2003') {
+      return res.status(404).json({ message: 'Error de clave foránea. Verifique que el id_proyecto y todos los id_material existan.' });
+    }
+
+    res.status(500).json({ message: 'Error del servidor al registrar los materiales.' });
+  }
+};
 
 /**
- * Obtiene todos los materiales para un proyecto específico, dado su ID.*/
-// controllers/projectMaterials.controller.js
+ * Obtiene todos los materiales para un proyecto específico con información detallada de stock y disponibilidad.
+ */
 const getProyectoMaterialById = async (req, res) => {
-  // ✅ Acepta ambos nombres de parámetro
+  // Acepta ambos nombres de parámetro
   const projectIdRaw = req.params.projectId ?? req.params.id_proyecto;
   const projectId = parseInt(projectIdRaw, 10);
 
@@ -146,85 +172,260 @@ const getProyectoMaterialById = async (req, res) => {
   }
 
   try {
-    const q = `
-      WITH bodega AS (
-        SELECT material_id, COALESCE(SUM(cantidad),0) AS en_bodega
-        FROM bodega_materiales
-        GROUP BY material_id
-      ),
-      reservados AS (
-        SELECT id_material AS material_id, COALESCE(SUM(reservado),0) AS reservado_total
-        FROM proyecto_material
-        GROUP BY id_material
-      )
-      SELECT
-        pm.id_material                                  AS material_id,
-        m.codigo,
-        m.material,
-        pm.ofertada                                     AS ofertado,
-        pm.reservado,
-        pm.en_obra,
-        (pm.ofertada - pm.en_obra)                      AS pendiente_entrega,
-        COALESCE(b.en_bodega, 0)                        AS en_bodega,
-        COALESCE(rv.reservado_total, 0)                 AS reservado_total,
-        (COALESCE(b.en_bodega,0) - COALESCE(rv.reservado_total,0)) AS disponible_global,
-        GREATEST(
-          0,
-          (pm.ofertada - pm.en_obra)
-          - (COALESCE(b.en_bodega,0) - COALESCE(rv.reservado_total,0))
-        )                                               AS pendiente_compra
-      FROM proyecto_material pm
-      JOIN materiales m      ON m.id = pm.id_material
-      LEFT JOIN bodega   b   ON b.material_id  = pm.id_material
-      LEFT JOIN reservados rv ON rv.material_id = pm.id_material
-      WHERE pm.id_proyecto = $1
-      ORDER BY m.material;
-    `;
+    // Verificar que el proyecto existe
+    const proyecto = await prisma.proyectos.findUnique({
+      where: { id: projectId }
+    });
 
-    const { rows } = await pool.query(q, [projectId]);
+    if (!proyecto) {
+      return res.status(404).json({ message: `Proyecto con ID ${projectId} no encontrado` });
+    }
 
-    // ✅ siempre devuelve { data: [...] }
-    if (rows.length === 0) {
+    // Obtener materiales del proyecto
+    const proyectoMateriales = await prisma.proyecto_material.findMany({
+      where: { id_proyecto: projectId },
+      include: {
+        material: {
+          select: {
+            codigo: true,
+            material: true
+          }
+        }
+      }
+    });
+
+    if (proyectoMateriales.length === 0) {
       return res.status(200).json({
         message: `No se encontraron materiales para el proyecto con ID ${projectId}`,
         data: [],
       });
     }
 
-    return res.status(200).json({ data: rows });
+    // Obtener stock en bodega por material
+    const materialIds = proyectoMateriales.map(pm => pm.id_material);
+    
+    const stockBodega = await prisma.bodega_materiales.groupBy({
+      by: ['material_id'],
+      _sum: {
+        cantidad: true
+      },
+      where: {
+        material_id: { in: materialIds }
+      }
+    });
 
-  } catch (e) {
-    console.error("Error en getProyectoMaterialById:", e);
+    // Obtener total reservado por material (todos los proyectos)
+    const totalReservado = await prisma.proyecto_material.groupBy({
+      by: ['id_material'],
+      _sum: {
+        reservado: true
+      },
+      where: {
+        id_material: { in: materialIds }
+      }
+    });
+
+    // Combinar toda la información
+    const result = proyectoMateriales.map(pm => {
+      const stockData = stockBodega.find(s => s.material_id === pm.id_material);
+      const enBodega = stockData?._sum.cantidad || 0;
+
+      const reservadoData = totalReservado.find(r => r.id_material === pm.id_material);
+      const reservadoTotal = reservadoData?._sum.reservado || 0;
+
+      const pendienteEntrega = pm.ofertada - pm.en_obra;
+      const disponibleGlobal = enBodega - reservadoTotal;
+      const pendienteCompra = Math.max(0, pendienteEntrega - disponibleGlobal);
+
+      return {
+        material_id: pm.id_material,
+        codigo: pm.material.codigo,
+        material: pm.material.material,
+        ofertado: pm.ofertada,
+        reservado: pm.reservado,
+        en_obra: pm.en_obra,
+        pendiente_entrega: pendienteEntrega,
+        en_bodega: enBodega,
+        reservado_total: reservadoTotal,
+        disponible_global: disponibleGlobal,
+        pendiente_compra: pendienteCompra
+      };
+    });
+
+    return res.status(200).json({ data: result });
+
+  } catch (error) {
+    console.error("Error en getProyectoMaterialById:", error);
     return res.status(500).json({
       message: "Error interno al obtener los materiales del proyecto.",
-      error: e.message,
+      error: error.message,
     });
   }
 };
 
+/**
+ * Añade un material a un proyecto específico
+ */
+const addProyectoMaterial = async (req, res) => {
+  try {
+    const { id_proyecto, id_material, ofertada = 0, en_obra = 0, reservado = 0 } = req.body;
 
-  const addProyectoMaterial = async (req, res) => {
-    try {
-      const { id_proyecto, id_material, ofertada = 0, en_obra = 0, reservado = 0 } = req.body;
-      const pm = await prisma.proyecto_material.create({
-        data: { id_proyecto, id_material, ofertada, en_obra, reservado }
+    // Validaciones básicas
+    if (!id_proyecto || !id_material) {
+      return res.status(400).json({ message: 'Los campos id_proyecto e id_material son requeridos' });
+    }
+
+    // Verificar que el proyecto existe
+    const proyecto = await prisma.proyectos.findUnique({
+      where: { id: parseInt(id_proyecto) }
+    });
+
+    if (!proyecto) {
+      return res.status(404).json({ message: `Proyecto con ID ${id_proyecto} no encontrado` });
+    }
+
+    // Verificar que el material existe
+    const material = await prisma.materiales.findUnique({
+      where: { id: parseInt(id_material) }
+    });
+
+    if (!material) {
+      return res.status(404).json({ message: `Material con ID ${id_material} no encontrado` });
+    }
+
+    const pm = await prisma.proyecto_material.create({
+      data: { 
+        id_proyecto: parseInt(id_proyecto), 
+        id_material: parseInt(id_material), 
+        ofertada, 
+        en_obra, 
+        reservado 
+      },
+      include: {
+        proyecto: {
+          select: {
+            nombre: true
+          }
+        },
+        material: {
+          select: {
+            codigo: true,
+            material: true
+          }
+        }
+      }
+    });
+
+    res.status(201).json({
+      message: 'Material añadido al proyecto exitosamente',
+      data: pm
+    });
+
+  } catch (error) {
+    console.error('Error en addProyectoMaterial:', error);
+    
+    if (error.code === 'P2002') {
+      return res.status(409).json({ message: 'Este material ya está asociado al proyecto' });
+    }
+
+    res.status(500).json({ message: 'Error del servidor al añadir material al proyecto' });
+  }
+};
+
+/**
+ * Lista todas las relaciones proyecto-material
+ */
+const listProyectoMaterials = async (req, res) => {
+  try {
+    const items = await prisma.proyecto_material.findMany({ 
+      include: { 
+        proyecto: {
+          select: {
+            nombre: true,
+            estado: true
+          }
+        }, 
+        material: {
+          select: {
+            codigo: true,
+            material: true
+          }
+        }
+      },
+      orderBy: [
+        { id_proyecto: 'asc' },
+        { id_material: 'asc' }
+      ]
+    });
+
+    res.json(items);
+
+  } catch (error) {
+    console.error('Error en listProyectoMaterials:', error);
+    res.status(500).json({ message: 'Error del servidor al listar proyecto-material' });
+  }
+};
+
+/**
+ * Actualiza la información de un material en un proyecto
+ */
+const updateProyectoMaterial = async (req, res) => {
+  const { id } = req.params;
+  const { ofertada, en_obra, reservado } = req.body;
+
+  if (isNaN(id) || !Number.isInteger(Number(id))) {
+    return res.status(400).json({ 
+      message: 'El ID debe ser un número entero válido',
+      received: id
+    });
+  }
+
+  try {
+    // Verificar que el registro existe
+    const existingRecord = await prisma.proyecto_material.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!existingRecord) {
+      return res.status(404).json({ 
+        message: `No se encontró registro de proyecto-material con ID ${id}` 
       });
-      res.status(201).json(pm);
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: 'Error añadiendo material al proyecto' });
     }
-  };
 
-  const listProyectoMaterials = async (req, res) => {
-    try {
-      const items = await prisma.proyecto_material.findMany({ include: { proyecto: true, material: true } });
-      res.json(items);
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: 'Error listando proyecto-material' });
-    }
-  };
+    // Preparar datos de actualización
+    const updateData = {};
+    if (ofertada !== undefined) updateData.ofertada = ofertada;
+    if (en_obra !== undefined) updateData.en_obra = en_obra;
+    if (reservado !== undefined) updateData.reservado = reservado;
+
+    const updatedRecord = await prisma.proyecto_material.update({
+      where: { id: parseInt(id) },
+      data: updateData,
+      include: {
+        proyecto: {
+          select: {
+            nombre: true
+          }
+        },
+        material: {
+          select: {
+            codigo: true,
+            material: true
+          }
+        }
+      }
+    });
+
+    res.json({
+      message: 'Registro actualizado exitosamente',
+      data: updatedRecord
+    });
+
+  } catch (error) {
+    console.error('Error en updateProyectoMaterial:', error);
+    res.status(500).json({ message: 'Error del servidor al actualizar el registro.' });
+  }
+};
 
 module.exports = {
   getProyectoMaterialEnProgreso,
@@ -232,4 +433,5 @@ module.exports = {
   getProyectoMaterialById,
   addProyectoMaterial,
   listProyectoMaterials,
+  updateProyectoMaterial
 };
