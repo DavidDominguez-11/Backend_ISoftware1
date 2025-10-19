@@ -1,45 +1,71 @@
-const pool = require('../config/db');
+const prisma = require('../prismaClient');
 
 const getEstadoMaterial = async (req, res) => {
-  const getQuery = `
-    WITH bm AS (
-      SELECT material_id, SUM(cantidad)::int AS en_bodega
-      FROM bodega_materiales
-      GROUP BY material_id
-    ),
-    pm AS (
-      SELECT id_material,
-             COALESCE(SUM(reservado), 0)::int AS reservado,
-             COALESCE(SUM(ofertada), 0)::int AS ofertada
-      FROM proyecto_material
-      GROUP BY id_material
-    )
-    SELECT 
-      m.id AS "id_material",
-      m.codigo AS "codigo",
-      m.material AS "nombre_material",
-      COALESCE(bm.en_bodega, 0) AS "en_bodega",
-      COALESCE(pm.reservado, 0) AS "reservado",
-      -- disponible "real" (puede ser negativo)
-      (COALESCE(bm.en_bodega, 0) - COALESCE(pm.reservado, 0)) AS "disponible",
-      -- Si quieres forzar mínimo 0, usa esta línea en su lugar:
-      -- GREATEST(COALESCE(bm.en_bodega,0) - COALESCE(pm.reservado,0), 0) AS "disponible",
-      CASE 
-        WHEN COALESCE(bm.en_bodega, 0) <= 0 THEN 'Sin stock'
-        WHEN (COALESCE(pm.ofertada, 0) * 100.0) / NULLIF(COALESCE(bm.en_bodega, 0), 0) < 30 THEN 'Alto'
-        WHEN (COALESCE(pm.ofertada, 0) * 100.0) / NULLIF(COALESCE(bm.en_bodega, 0), 0) BETWEEN 30 AND 70 THEN 'Medio'
-        ELSE 'Bajo'
-      END AS "nivel_stock"
-    FROM materiales m
-    LEFT JOIN bm ON bm.material_id = m.id
-    LEFT JOIN pm ON pm.id_material = m.id
-    ORDER BY m.codigo;
-  `;
-// No Prisma model named estado_materiales in schema. If you have one, replace logic accordingly.
-
   try {
-    const result = await pool.query(getQuery);
-    res.status(200).json(result.rows);
+    // Paso 1: Obtener todos los materiales
+    const materiales = await prisma.materiales.findMany({
+      orderBy: { codigo: 'asc' }
+    });
+
+    // Paso 2: Obtener stock en bodega por material (suma de cantidades)
+    const stockBodega = await prisma.bodega_materiales.groupBy({
+      by: ['material_id'],
+      _sum: {
+        cantidad: true
+      }
+    });
+
+    // Paso 3: Obtener reservado y ofertado por material desde proyecto_material
+    const stockProyectos = await prisma.proyecto_material.groupBy({
+      by: ['id_material'],
+      _sum: {
+        reservado: true,
+        ofertada: true
+      }
+    });
+
+    // Paso 4: Combinar toda la información
+    const estadoMateriales = materiales.map(material => {
+      // Buscar stock en bodega para este material
+      const bodegaData = stockBodega.find(b => b.material_id === material.id);
+      const enBodega = bodegaData?._sum.cantidad || 0;
+
+      // Buscar datos de proyectos para este material
+      const proyectoData = stockProyectos.find(p => p.id_material === material.id);
+      const reservado = proyectoData?._sum.reservado || 0;
+      const ofertada = proyectoData?._sum.ofertada || 0;
+
+      // Calcular disponible
+      const disponible = enBodega - reservado;
+
+      // Calcular nivel de stock
+      let nivelStock;
+      if (enBodega <= 0) {
+        nivelStock = 'Sin stock';
+      } else {
+        const porcentajeOfertado = (ofertada * 100.0) / enBodega;
+        if (porcentajeOfertado < 30) {
+          nivelStock = 'Alto';
+        } else if (porcentajeOfertado >= 30 && porcentajeOfertado <= 70) {
+          nivelStock = 'Medio';
+        } else {
+          nivelStock = 'Bajo';
+        }
+      }
+
+      return {
+        id_material: material.id,
+        codigo: material.codigo,
+        nombre_material: material.material,
+        en_bodega: enBodega,
+        reservado: reservado,
+        disponible: disponible,
+        nivel_stock: nivelStock
+      };
+    });
+
+    res.status(200).json(estadoMateriales);
+
   } catch (error) {
     console.error('Error al obtener el estado de materiales:', error);
     res.status(500).json({
@@ -47,12 +73,160 @@ const getEstadoMaterial = async (req, res) => {
       error: error.message
     });
   }
-const notImplemented = (req, res) => {
-  res.status(501).json({ error: 'Endpoint no implementado. Añade un modelo a Prisma si es necesario.' });
 };
 
-module.exports = { getEstadoMaterial };
+// Función adicional para obtener estado de un material específico
+const getEstadoMaterialById = async (req, res) => {
+  const { id } = req.params;
+  
+  if (isNaN(id) || !Number.isInteger(Number(id))) {
+    return res.status(400).json({ 
+      message: 'El ID debe ser un número entero válido',
+      received: id
+    });
+  }
+
+  try {
+    // Verificar que el material existe
+    const material = await prisma.materiales.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!material) {
+      return res.status(404).json({ 
+        message: `No se encontró un material con el ID ${id}.` 
+      });
+    }
+
+    // Obtener stock en bodega
+    const stockBodega = await prisma.bodega_materiales.aggregate({
+      _sum: {
+        cantidad: true
+      },
+      where: {
+        material_id: parseInt(id)
+      }
+    });
+
+    // Obtener datos de proyectos
+    const stockProyectos = await prisma.proyecto_material.aggregate({
+      _sum: {
+        reservado: true,
+        ofertada: true
+      },
+      where: {
+        id_material: parseInt(id)
+      }
+    });
+
+    const enBodega = stockBodega._sum.cantidad || 0;
+    const reservado = stockProyectos._sum.reservado || 0;
+    const ofertada = stockProyectos._sum.ofertada || 0;
+    const disponible = enBodega - reservado;
+
+    // Calcular nivel de stock
+    let nivelStock;
+    if (enBodega <= 0) {
+      nivelStock = 'Sin stock';
+    } else {
+      const porcentajeOfertado = (ofertada * 100.0) / enBodega;
+      if (porcentajeOfertado < 30) {
+        nivelStock = 'Alto';
+      } else if (porcentajeOfertado >= 30 && porcentajeOfertado <= 70) {
+        nivelStock = 'Medio';
+      } else {
+        nivelStock = 'Bajo';
+      }
+    }
+
+    const estadoMaterial = {
+      id_material: material.id,
+      codigo: material.codigo,
+      nombre_material: material.material,
+      en_bodega: enBodega,
+      reservado: reservado,
+      disponible: disponible,
+      nivel_stock: nivelStock
+    };
+
+    res.status(200).json(estadoMaterial);
+
+  } catch (error) {
+    console.error('Error al obtener el estado del material:', error);
+    res.status(500).json({
+      message: 'Error no se ha podido obtener el Estado del Material',
+      error: error.message
+    });
+  }
+};
+
+// Función para obtener materiales con stock bajo
+const getMaterialesStockBajo = async (req, res) => {
+  try {
+    // Obtener todos los materiales con su estado
+    const materiales = await prisma.materiales.findMany({
+      orderBy: { codigo: 'asc' }
+    });
+
+    const stockBodega = await prisma.bodega_materiales.groupBy({
+      by: ['material_id'],
+      _sum: {
+        cantidad: true
+      }
+    });
+
+    const stockProyectos = await prisma.proyecto_material.groupBy({
+      by: ['id_material'],
+      _sum: {
+        reservado: true,
+        ofertada: true
+      }
+    });
+
+    // Filtrar solo materiales con stock bajo o sin stock
+    const materialesStockBajo = materiales
+      .map(material => {
+        const bodegaData = stockBodega.find(b => b.material_id === material.id);
+        const enBodega = bodegaData?._sum.cantidad || 0;
+
+        const proyectoData = stockProyectos.find(p => p.id_material === material.id);
+        const ofertada = proyectoData?._sum.ofertada || 0;
+
+        let nivelStock;
+        if (enBodega <= 0) {
+          nivelStock = 'Sin stock';
+        } else {
+          const porcentajeOfertado = (ofertada * 100.0) / enBodega;
+          if (porcentajeOfertado < 30) {
+            nivelStock = 'Alto';
+          } else if (porcentajeOfertado >= 30 && porcentajeOfertado <= 70) {
+            nivelStock = 'Medio';
+          } else {
+            nivelStock = 'Bajo';
+          }
+        }
+
+        return {
+          ...material,
+          nivel_stock: nivelStock,
+          en_bodega: enBodega
+        };
+      })
+      .filter(material => material.nivel_stock === 'Bajo' || material.nivel_stock === 'Sin stock');
+
+    res.status(200).json(materialesStockBajo);
+
+  } catch (error) {
+    console.error('Error al obtener materiales con stock bajo:', error);
+    res.status(500).json({
+      message: 'Error no se ha podido obtener los materiales con stock bajo',
+      error: error.message
+    });
+  }
+};
 
 module.exports = {
-  notImplemented
+  getEstadoMaterial,
+  getEstadoMaterialById,
+  getMaterialesStockBajo
 };

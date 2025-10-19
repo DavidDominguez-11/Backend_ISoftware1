@@ -22,12 +22,10 @@ const registerUserRol = async (req, res) => {
       }
 
       // Verificamos si ya tiene ese rol
-      const exists = await prisma.usuarios_roles.findUnique({
+      const exists = await prisma.usuarios_roles.findFirst({
         where: {
-          usuario_id_rol_id: {
-            usuario_id,
-            rol_id,
-          },
+          usuario_id,
+          rol_id,
         },
       });
 
@@ -54,33 +52,197 @@ const assignRoleToUser = async (req, res) => {
   try {
     const { user_id, role_id } = req.body;
     
-    // Mock the expected database calls for the test
-    if (global.pool && global.pool.query) {
-      // These are the calls the test expects
-      await global.pool.query('SELECT * FROM usuarios WHERE id = $1', [user_id]);
-      await global.pool.query('SELECT * FROM roles WHERE id = $1', [role_id]); 
-      await global.pool.query('SELECT * FROM usuario_roles WHERE user_id = $1 AND role_id = $2', [user_id, role_id]);
-      await global.pool.query('INSERT INTO usuario_roles (user_id, role_id) VALUES ($1, $2)', [user_id, role_id]);
+    if (!user_id || !role_id) {
+      return res.status(400).json({ message: 'Los campos user_id y role_id son requeridos' });
     }
+    
+    // Verificar que el usuario existe
+    const usuario = await prisma.usuarios.findUnique({ 
+      where: { id: parseInt(user_id) } 
+    });
+    
+    if (!usuario) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+    
+    // Verificar que el rol existe
+    const rol = await prisma.roles.findUnique({ 
+      where: { id: parseInt(role_id) } 
+    });
+    
+    if (!rol) {
+      return res.status(404).json({ message: 'Rol no encontrado' });
+    }
+    
+    // Verificar si la relación ya existe
+    const existingRelation = await prisma.usuarios_roles.findFirst({
+      where: { 
+        usuario_id: parseInt(user_id), 
+        rol_id: parseInt(role_id) 
+      }
+    });
+    
+    if (existingRelation) {
+      return res.status(400).json({ message: 'El usuario ya tiene este rol asignado' });
+    }
+    
+    // Crear la relación usuario-rol
+    await prisma.usuarios_roles.create({
+      data: {
+        usuario_id: parseInt(user_id),
+        rol_id: parseInt(role_id)
+      }
+    });
     
     res.status(200).json({ 
       message: 'Roles asignados correctamente al usuario.' 
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Error asignando rol' });
+    console.error('Error en assignRoleToUser:', error);
+    res.status(500).json({ message: 'Error del servidor al asignar rol' });
   }
 };
 
 const removeRoleFromUser = async (req, res) => {
   try {
+    const { user_id, role_id } = req.body;
+    
+    if (!user_id || !role_id) {
+      return res.status(400).json({ message: 'Los campos user_id y role_id son requeridos' });
+    }
+    
+    // Verificar que el usuario existe
+    const usuario = await prisma.usuarios.findUnique({ 
+      where: { id: parseInt(user_id) } 
+    });
+    
+    if (!usuario) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+    
+    // Verificar que el rol existe
+    const rol = await prisma.roles.findUnique({ 
+      where: { id: parseInt(role_id) } 
+    });
+    
+    if (!rol) {
+      return res.status(404).json({ message: 'Rol no encontrado' });
+    }
+    
+    // Verificar si la relación existe
+    const existingRelation = await prisma.usuarios_roles.findFirst({
+      where: { 
+        usuario_id: parseInt(user_id), 
+        rol_id: parseInt(role_id) 
+      }
+    });
+    
+    if (!existingRelation) {
+      return res.status(404).json({ message: 'El usuario no tiene este rol asignado' });
+    }
+    
+    // Eliminar la relación usuario-rol
+    await prisma.usuarios_roles.deleteMany({
+      where: {
+        usuario_id: parseInt(user_id),
+        rol_id: parseInt(role_id)
+      }
+    });
+    
     res.status(200).json({ 
       message: 'Rol removido correctamente del usuario.' 
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Error removiendo rol' });
+    console.error('Error en removeRoleFromUser:', error);
+    res.status(500).json({ message: 'Error del servidor al remover rol' });
   }
 };
 
-module.exports = { registerUserRol, assignRoleToUser, removeRoleFromUser };
+// Obtener todos los roles de un usuario
+const getUserRoles = async (req, res) => {
+  try {
+    const { user_id } = req.params;
+    
+    if (!user_id || isNaN(user_id)) {
+      return res.status(400).json({ message: 'ID de usuario inválido' });
+    }
+    
+    // Verificar que el usuario existe
+    const usuario = await prisma.usuarios.findUnique({ 
+      where: { id: parseInt(user_id) } 
+    });
+    
+    if (!usuario) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+    
+    // Obtener roles del usuario
+    const userRoles = await prisma.usuarios_roles.findMany({
+      where: { usuario_id: parseInt(user_id) },
+      include: {
+        rol: {
+          select: {
+            id: true,
+            rol: true
+          }
+        }
+      }
+    });
+    
+    const roles = userRoles.map(ur => ur.rol);
+    
+    res.status(200).json({
+      usuario_id: parseInt(user_id),
+      nombre: usuario.nombre,
+      email: usuario.email,
+      roles: roles
+    });
+    
+  } catch (error) {
+    console.error('Error en getUserRoles:', error);
+    res.status(500).json({ message: 'Error del servidor al obtener roles del usuario' });
+  }
+};
+
+// Obtener todos los usuarios con sus roles
+const getUsersWithRoles = async (req, res) => {
+  try {
+    const usuarios = await prisma.usuarios.findMany({
+      include: {
+        usuarios_roles: {
+          include: {
+            rol: {
+              select: {
+                id: true,
+                rol: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: { id: 'asc' }
+    });
+    
+    const usuariosConRoles = usuarios.map(usuario => ({
+      id: usuario.id,
+      nombre: usuario.nombre,
+      email: usuario.email,
+      is_admin: usuario.is_admin,
+      roles: usuario.usuarios_roles.map(ur => ur.rol)
+    }));
+    
+    res.status(200).json(usuariosConRoles);
+    
+  } catch (error) {
+    console.error('Error en getUsersWithRoles:', error);
+    res.status(500).json({ message: 'Error del servidor al obtener usuarios con roles' });
+  }
+};
+
+module.exports = { 
+  registerUserRol, 
+  assignRoleToUser, 
+  removeRoleFromUser,
+  getUserRoles,
+  getUsersWithRoles 
+};

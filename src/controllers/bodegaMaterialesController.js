@@ -3,203 +3,277 @@ const prisma = require('../prismaClient');
 
 /**
  * GET /bodega-materiales
- * Filtros opcionales: ?tipo=Entrada|Salida&material_id=...&proyecto_id=...
+ * Filtros opcionales: ?tipo=entrada|salida&material_id=...&proyecto_id=...
  */
 const getBodegaMateriales = async (req, res) => {
   try {
+    const { tipo, material_id, proyecto_id } = req.query;
+    
+    // Build where clause for filters
+    const where = {};
+    if (tipo) where.tipo = tipo;
+    if (material_id) where.material_id = parseInt(material_id);
+    if (proyecto_id) where.proyecto_id = parseInt(proyecto_id);
+
     const movimientos = await prisma.bodega_materiales.findMany({
-      include: { material: true },
-      orderBy: { fecha: 'desc' }
+      where,
+      include: { 
+        material: {
+          select: {
+            codigo: true,
+            material: true
+          }
+        },
+        proyecto: {
+          select: {
+            nombre: true
+          }
+        }
+      },
+      orderBy: [
+        { fecha: 'desc' },
+        { id: 'desc' }
+      ]
     });
 
     if (movimientos.length === 0) {
       return res.status(404).json({ message: 'No se encontraron registros en la bodega de materiales' });
     }
 
-    res.json(movimientos);
+    // Transform data to match expected format
+    const transformedMovimientos = movimientos.map(mov => ({
+      id: mov.id,
+      material_id: mov.material_id,
+      material_codigo: mov.material?.codigo || null,
+      material_nombre: mov.material?.material || null,
+      tipo: mov.tipo,
+      cantidad: mov.cantidad,
+      fecha: mov.fecha,
+      observaciones: mov.observaciones,
+      proyecto_id: mov.proyecto_id,
+      proyecto_nombre: mov.proyecto?.nombre || null
+    }));
+
+    res.json(transformedMovimientos);
   } catch (error) {
     console.error('Error en getBodegaMateriales:', error);
     res.status(500).json({ message: 'Error del servidor' });
-    const { tipo, material_id, proyecto_id } = req.query;
-    const where = [];
-    const params = [];
-
-    if (tipo)        { params.push(tipo);              where.push(`bm.tipo = $${params.length}`); }
-    if (material_id) { params.push(Number(material_id)); where.push(`bm.material_id = $${params.length}`); }
-    if (proyecto_id) { params.push(Number(proyecto_id)); where.push(`bm.proyecto_id = $${params.length}`); }
-
-    const sql = `
-      SELECT 
-        bm.id,
-        bm.material_id,
-        m.codigo AS material_codigo,
-        m.material AS material_nombre,
-        bm.tipo,
-        bm.cantidad,
-        bm.fecha,
-        bm.observaciones,
-        bm.proyecto_id,
-        p.nombre AS proyecto_nombre
-      FROM bodega_materiales bm
-      JOIN materiales m ON m.id = bm.material_id
-      LEFT JOIN proyectos p ON p.id = bm.proyecto_id
-      ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
-      ORDER BY bm.fecha DESC, bm.id DESC;
-    `;
-    const { rows } = await pool.query(sql, params);
-    return res.json(rows);
-  } catch (err) {
-    console.error('getBodegaMateriales:', err);
-    return res.status(500).json({ message: 'Error del servidor' });
   }
 };
 
-const createBodegaMaterial = async (req, res) => {
-  const { material_id, tipo, cantidad, fecha, observaciones } = req.body;
-
-  // Validación básica de los datos de entrada
-  if (!material_id || !tipo || !cantidad || !fecha) {
-      return res.status(400).json({ message: 'Faltan campos obligatorios: material_id, tipo, cantidad, fecha.' });
-  }
-  if (tipo !== 'entrada' && tipo !== 'salida') {
-      return res.status(400).json({ message: `El tipo de movimiento '${tipo}' no es válido.` });
-  }
-  if (cantidad <= 0) {
-      return res.status(400).json({ message: 'La cantidad debe ser un número positivo.' });
-  }
-
-  // --- NUEVA LÓGICA DE VALIDACIÓN DE STOCK ---
-  if (tipo === 'salida') {
-      try {
-          // Calculamos el stock actual para ese material.
-          const stock = await prisma.bodega_materiales.aggregate({
-              _sum: {
-                  cantidad: true
-              },
-              where: {
-                  material_id: material_id,
-                  tipo: 'entrada'
-              }
-          });
-
-          const stockActual = stock._sum.cantidad || 0;
 /**
  * POST /bodega-materiales
- * body: { material_id, tipo: 'Entrada'|'Salida', cantidad (>0), fecha? (YYYY-MM-DD), observaciones?, proyecto_id? }
+ * body: { material_id, tipo: 'entrada'|'salida', cantidad (>0), fecha?, observaciones?, proyecto_id? }
  * Reglas:
- *  - Entrada: cantidad se guarda positiva; proyecto_id debe ser NULL (el CHECK lo exige).
- *  - Salida:  cantidad recibida >0 pero se guarda negativa; proyecto_id es OBLIGATORIO; valida stock.
+ *  - entrada: cantidad se guarda positiva; proyecto_id debe ser NULL
+ *  - salida: cantidad recibida >0 pero se guarda negativa; proyecto_id es OBLIGATORIO; valida stock
  */
-const postBodegaMaterial = async (req, res) => {
-  const client = await pool.connect();
+const createBodegaMaterial = async (req, res) => {
   try {
     const { material_id, tipo, cantidad, fecha, observaciones, proyecto_id } = req.body;
 
     // Validaciones básicas
-    if (!material_id || !tipo || !cantidad) {
+    if (!material_id || !tipo || cantidad === undefined) {
       return res.status(400).json({ message: 'Faltan campos: material_id, tipo, cantidad' });
     }
-    if (tipo !== 'Entrada' && tipo !== 'Salida') {
-      return res.status(400).json({ message: `tipo inválido: ${tipo}` });
+    
+    if (tipo !== 'entrada' && tipo !== 'salida') {
+      return res.status(400).json({ message: `Tipo inválido: ${tipo}. Debe ser 'entrada' o 'salida'` });
     }
+    
     const qty = Number(cantidad);
     if (!Number.isFinite(qty) || qty <= 0) {
       return res.status(400).json({ message: 'La cantidad debe ser un número > 0' });
     }
 
-    await client.query('BEGIN');
+    // Verificar que el material existe
+    const material = await prisma.materiales.findUnique({
+      where: { id: parseInt(material_id) }
+    });
 
-    // Existen material (y proyecto si aplica)
-    const mat = await client.query('SELECT 1 FROM materiales WHERE id=$1', [material_id]);
-    if (mat.rowCount === 0) {
-      await client.query('ROLLBACK');
+    if (!material) {
       return res.status(404).json({ message: `Material id=${material_id} no existe` });
     }
 
-    if (tipo === 'Salida') {
+    // Validaciones específicas para salida
+    if (tipo === 'salida') {
       if (!proyecto_id) {
-        await client.query('ROLLBACK');
-        return res.status(400).json({ message: 'proyecto_id es obligatorio para Salida' });
+        return res.status(400).json({ message: 'proyecto_id es obligatorio para salida' });
       }
-      const pro = await client.query('SELECT 1 FROM proyectos WHERE id=$1', [proyecto_id]);
-      if (pro.rowCount === 0) {
-        await client.query('ROLLBACK');
+
+      // Verificar que el proyecto existe
+      const proyecto = await prisma.proyectos.findUnique({
+        where: { id: parseInt(proyecto_id) }
+      });
+
+      if (!proyecto) {
         return res.status(404).json({ message: `Proyecto id=${proyecto_id} no existe` });
       }
 
-      // Validar stock (recuerda: salidas ya grabadas están negativas)
-      const { rows } = await client.query(
-        `SELECT COALESCE(SUM(cantidad),0) AS stock FROM bodega_materiales WHERE material_id=$1`,
-        [material_id]
-      );
-      const stockActual = Number(rows[0].stock || 0);
+      // Validar stock disponible
+      const stockResult = await prisma.bodega_materiales.aggregate({
+        _sum: {
+          cantidad: true
+        },
+        where: {
+          material_id: parseInt(material_id)
+        }
+      });
+
+      const stockActual = stockResult._sum.cantidad || 0;
+      
       if (stockActual < qty) {
-        await client.query('ROLLBACK');
         return res.status(400).json({
           message: `Stock insuficiente. Stock actual: ${stockActual}, intento de salida: ${qty}`,
         });
       }
-  }
-  // --- FIN DE LA NUEVA LÓGICA ---
+    }
 
-  try {
-      const movimiento = await prisma.bodega_materiales.create({
-        data: {
-          material_id,
-          tipo,
-          cantidad,
-          fecha: new Date(fecha),
-          observaciones
+    // Preparar datos para inserción
+    const cantidadFinal = tipo === 'salida' ? -qty : qty;
+    const proyectoIdFinal = tipo === 'entrada' ? null : parseInt(proyecto_id);
+
+    const movimiento = await prisma.bodega_materiales.create({
+      data: {
+        material_id: parseInt(material_id),
+        tipo,
+        cantidad: cantidadFinal,
+        fecha: fecha ? new Date(fecha) : new Date(),
+        observaciones: observaciones || null,
+        proyecto_id: proyectoIdFinal
+      },
+      include: {
+        material: {
+          select: {
+            codigo: true,
+            material: true
+          }
+        },
+        proyecto: {
+          select: {
+            nombre: true
+          }
         }
-      });
+      }
+    });
 
-      res.status(201).json(movimiento);
+    res.status(201).json(movimiento);
 
   } catch (error) {
-      console.error('Error en createBodegaMaterial:', error);
-      if (error.code === 'P2025') { // Error específico de Prisma para registro no encontrado
-          return res.status(404).json({ message: `El material con id '${material_id}' no existe.` });
+    console.error('Error en createBodegaMaterial:', error);
+    
+    if (error.code === 'P2002') {
+      return res.status(400).json({ message: 'Violación de restricción única' });
+    }
+    
+    if (error.code === 'P2003') {
+      return res.status(404).json({ message: 'FK no encontrada: material o proyecto inexistente' });
+    }
+    
+    res.status(500).json({ message: 'Error del servidor al crear el movimiento' });
+  }
+};
+
+/**
+ * GET /bodega-materiales/stock/:material_id
+ * Obtiene el stock actual de un material específico
+ */
+const getStockByMaterial = async (req, res) => {
+  try {
+    const { material_id } = req.params;
+
+    if (isNaN(material_id) || !Number.isInteger(Number(material_id))) {
+      return res.status(400).json({ 
+        message: 'El ID del material debe ser un número entero válido',
+        received: material_id
+      });
+    }
+
+    // Verificar que el material existe
+    const material = await prisma.materiales.findUnique({
+      where: { id: parseInt(material_id) }
+    });
+
+    if (!material) {
+      return res.status(404).json({ message: `Material id=${material_id} no existe` });
+    }
+
+    // Calcular stock actual
+    const stockResult = await prisma.bodega_materiales.aggregate({
+      _sum: {
+        cantidad: true
+      },
+      where: {
+        material_id: parseInt(material_id)
       }
-      res.status(500).json({ message: 'Error del servidor al crear el movimiento.' });
-      // Insert de salida (cantidad negativa, con proyecto_id)
-      const insert = await client.query(
-        `INSERT INTO bodega_materiales (material_id, tipo, cantidad, fecha, observaciones, proyecto_id)
-         VALUES ($1, 'Salida', $2, COALESCE($3::date, CURRENT_DATE), $4, $5)
-         RETURNING *;`,
-        [material_id, -qty, fecha || null, observaciones || null, proyecto_id]
-      );
+    });
 
-      await client.query('COMMIT');
-      return res.status(201).json(insert.rows[0]);
-    }
+    const stock = stockResult._sum.cantidad || 0;
 
-    // Entrada: proyecto_id debe ser NULL (CHECK lo exige)
-    const insert = await client.query(
-      `INSERT INTO bodega_materiales (material_id, tipo, cantidad, fecha, observaciones, proyecto_id)
-       VALUES ($1, 'Entrada', $2, COALESCE($3::date, CURRENT_DATE), $4, NULL)
-       RETURNING *;`,
-      [material_id, qty, fecha || null, observaciones || null]
-    );
+    res.json({
+      material_id: parseInt(material_id),
+      material_codigo: material.codigo,
+      material_nombre: material.material,
+      stock_actual: stock
+    });
 
-    await client.query('COMMIT');
-    return res.status(201).json(insert.rows[0]);
-  } catch (err) {
-    await pool.query('ROLLBACK');
-    console.error('postBodegaMaterial:', err);
-    if (err.code === '23514') {
-      // violación de CHECK (ej. signo o proyecto_id)
-      return res.status(400).json({ message: 'Violación de restricción CHECK: revisa tipo, cantidad y proyecto_id.' });
-    }
-    if (err.code === '23503') {
-      return res.status(404).json({ message: 'FK no encontrada: material o proyecto inexistente.' });
-    }
-    return res.status(500).json({ message: 'Error del servidor al crear el movimiento' });
-  } finally {
-    client.release();
+  } catch (error) {
+    console.error('Error en getStockByMaterial:', error);
+    res.status(500).json({ message: 'Error del servidor al obtener el stock' });
+  }
+};
+
+/**
+ * GET /bodega-materiales/stock
+ * Obtiene el stock actual de todos los materiales
+ */
+const getAllStock = async (req, res) => {
+  try {
+    const stockData = await prisma.bodega_materiales.groupBy({
+      by: ['material_id'],
+      _sum: {
+        cantidad: true
+      },
+      orderBy: {
+        material_id: 'asc'
+      }
+    });
+
+    // Obtener información de los materiales
+    const materialIds = stockData.map(item => item.material_id);
+    const materiales = await prisma.materiales.findMany({
+      where: {
+        id: { in: materialIds }
+      },
+      select: {
+        id: true,
+        codigo: true,
+        material: true
+      }
+    });
+
+    // Combinar información
+    const stockWithMaterials = stockData.map(stock => {
+      const material = materiales.find(m => m.id === stock.material_id);
+      return {
+        material_id: stock.material_id,
+        material_codigo: material?.codigo || 'N/A',
+        material_nombre: material?.material || 'N/A',
+        stock_actual: stock._sum.cantidad || 0
+      };
+    });
+
+    res.json(stockWithMaterials);
+
+  } catch (error) {
+    console.error('Error en getAllStock:', error);
+    res.status(500).json({ message: 'Error del servidor al obtener el stock' });
   }
 };
 
 module.exports = {
   getBodegaMateriales,
-  postBodegaMaterial,
+  createBodegaMaterial,
+  getStockByMaterial,
+  getAllStock
 };
