@@ -316,10 +316,127 @@ const entregarMaterialAObra = async (req, res) => {
   }
 };
 
+/**
+ * Endpoint para reservar materiales - actualiza el campo 'reservado'
+ * Recibe: { id_proyecto, id_material, cantidad } 
+ * Incrementa 'reservado' en la cantidad especificada
+ */
+const reservarMaterial = async (req, res) => {
+  const { id_proyecto, id_material, cantidad } = req.body;
+
+  // Validaciones básicas
+  if (!id_proyecto || !id_material || cantidad === undefined) {
+    return res.status(400).json({
+      message: 'Se requieren: id_proyecto, id_material y cantidad'
+    });
+  }
+
+  if (typeof cantidad !== 'number' || cantidad <= 0) {
+    return res.status(400).json({
+      message: 'La cantidad debe ser un número positivo'
+    });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // 1. Verificar que el proyecto existe y no está finalizado/cancelado
+    const proyectoQuery = 'SELECT estado FROM proyectos WHERE id = $1';
+    const proyectoResult = await client.query(proyectoQuery, [id_proyecto]);
+    
+    if (proyectoResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ message: 'Proyecto no encontrado' });
+    }
+
+    const estadoProyecto = proyectoResult.rows[0].estado;
+    if (estadoProyecto === 'Finalizado' || estadoProyecto === 'Cancelado') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        message: `No se pueden reservar materiales en un proyecto en estado '${estadoProyecto}'`
+      });
+    }
+
+    // 2. Verificar que existe la relación proyecto-material
+    const pmQuery = `
+      SELECT ofertada, en_obra, reservado 
+      FROM proyecto_material 
+      WHERE id_proyecto = $1 AND id_material = $2
+    `;
+    const pmResult = await client.query(pmQuery, [id_proyecto, id_material]);
+    
+    if (pmResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ 
+        message: 'El material no está asignado a este proyecto' 
+      });
+    }
+
+    const { ofertada, en_obra, reservado } = pmResult.rows[0];
+    const nuevoReservado = reservado + cantidad;
+
+    // 3. Validar que no se exceda lo ofertada (reservado + en_obra no debe exceder ofertada)
+    const totalComprometido = nuevoReservado + en_obra;
+    if (totalComprometido > ofertada) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        message: `No se puede reservar más materiales de los disponibles. Ofertada: ${ofertada}, Actual en obra: ${en_obra}, Actual reservado: ${reservado}, Intenta agregar: ${cantidad}. Total comprometido (${totalComprometido}) excede la cantidad ofertada (${ofertada}).`
+      });
+    }
+
+    // 4. Actualizar el campo reservado
+    const updateQuery = `
+      UPDATE proyecto_material 
+      SET reservado = $1 
+      WHERE id_proyecto = $2 AND id_material = $3
+      RETURNING *
+    `;
+    
+    const updateResult = await client.query(updateQuery, [
+      nuevoReservado, 
+      id_proyecto, 
+      id_material
+    ]);
+
+    await client.query('COMMIT');
+
+    res.json({
+      message: 'Material reservado exitosamente',
+      data: updateResult.rows[0],
+      resumen: {
+        anterior_reservado: reservado,
+        cantidad_agregada: cantidad,
+        nuevo_reservado: nuevoReservado,
+        ofertada_restante_para_reservar: ofertada - totalComprometido
+      }
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error en reservarMaterial:', error);
+
+    // Manejar error del trigger de estado si aplica
+    if (error.message.includes('No se pueden asignar o modificar materiales')) {
+      return res.status(400).json({
+        message: error.message
+      });
+    }
+
+    res.status(500).json({
+      message: 'Error del servidor al reservar material',
+      error: error.message
+    });
+  } finally {
+    client.release();
+  }
+};
 
 module.exports = {
   getProyectoMaterialEnProgreso,
   createProyectoMaterial,
   getProyectoMaterialById,
-  entregarMaterialAObra
+  entregarMaterialAObra,
+  reservarMaterial
 };

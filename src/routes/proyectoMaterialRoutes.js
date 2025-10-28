@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 
 // Importar el controlador
-const { getProyectoMaterialEnProgreso, createProyectoMaterial, getProyectoMaterialById, entregarMaterialAObra } = require('../controllers/proyectoMaterialController');
+const { getProyectoMaterialEnProgreso, createProyectoMaterial, getProyectoMaterialById, entregarMaterialAObra, reservarMaterial  } = require('../controllers/proyectoMaterialController');
 
 // Definir la ruta GET para obtener los materiales de proyectos "en progreso"
 // El endpoint será: GET /services/proyecto-material/en-progreso
@@ -18,6 +18,9 @@ router.post('/proyecto-material', createProyectoMaterial);
 router.get('/proyecto-material/:id_proyecto', getProyectoMaterialById);
 
 //ruta para endpoint PUT para actualizar la cantidad en_obra en proyecto_material
-router.put('/entregar-obra', entregarMaterialAObra);
+router.put('/proyecto-material/entregar-obra', entregarMaterialAObra);
+
+//ruta para endpoint PUT para actualizar la cantidad reservada en proyecto_material
+router.put('/proyecto-material/reservar', reservarMaterial);
 
 module.exports = router;
