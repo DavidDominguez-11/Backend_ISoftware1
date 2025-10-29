@@ -18,9 +18,9 @@ router.post('/proyecto-material', createProyectoMaterial);
 router.get('/proyecto-material/:id_proyecto', getProyectoMaterialById);
 
 //ruta para endpoint PUT para actualizar la cantidad en_obra en proyecto_material
-router.put('/proyecto-material/entregar-obra', entregarMaterialAObra);
+router.patch('/proyecto-material/entregar-obra', entregarMaterialAObra);
 
 //ruta para endpoint PUT para actualizar la cantidad reservada en proyecto_material
-router.put('/proyecto-material/reservar', reservarMaterial);
+router.patch('/proyecto-material/reservar', reservarMaterial);
 
 module.exports = router;

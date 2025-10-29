@@ -135,7 +135,6 @@ const createProyectoMaterial = async (req, res) => {
  * Obtiene todos los materiales para un proyecto específico, dado su ID.*/
 // controllers/projectMaterials.controller.js
 const getProyectoMaterialById = async (req, res) => {
-  // ✅ Acepta ambos nombres de parámetro
   const projectIdRaw = req.params.projectId ?? req.params.id_proyecto;
   const projectId = parseInt(projectIdRaw, 10);
 
@@ -166,11 +165,7 @@ const getProyectoMaterialById = async (req, res) => {
         COALESCE(b.en_bodega, 0)                        AS en_bodega,
         COALESCE(rv.reservado_total, 0)                 AS reservado_total,
         (COALESCE(b.en_bodega,0) - COALESCE(rv.reservado_total,0)) AS disponible_global,
-        GREATEST(
-          0,
-          (pm.ofertada - pm.en_obra)
-          - (COALESCE(b.en_bodega,0) - COALESCE(rv.reservado_total,0))
-        )                                               AS pendiente_compra
+        GREATEST(0, (pm.ofertada - pm.reservado - pm.en_obra))      AS pendiente_compra
       FROM proyecto_material pm
       JOIN materiales m      ON m.id = pm.id_material
       LEFT JOIN bodega   b   ON b.material_id  = pm.id_material
@@ -181,7 +176,6 @@ const getProyectoMaterialById = async (req, res) => {
 
     const { rows } = await pool.query(q, [projectId]);
 
-    // ✅ siempre devuelve { data: [...] }
     if (rows.length === 0) {
       return res.status(200).json({
         message: `No se encontraron materiales para el proyecto con ID ${projectId}`,
@@ -190,7 +184,6 @@ const getProyectoMaterialById = async (req, res) => {
     }
 
     return res.status(200).json({ data: rows });
-
   } catch (e) {
     console.error("Error en getProyectoMaterialById:", e);
     return res.status(500).json({
@@ -199,6 +192,7 @@ const getProyectoMaterialById = async (req, res) => {
     });
   }
 };
+
 
 /**
  * Endpoint para entregar materiales a obra - actualiza el campo 'en_obra'
