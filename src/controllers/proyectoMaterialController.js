@@ -202,7 +202,6 @@ const getProyectoMaterialById = async (req, res) => {
 const entregarMaterialAObra = async (req, res) => {
   const { id_proyecto, id_material, cantidad } = req.body;
 
-  // Validaciones básicas
   if (!id_proyecto || !id_material || cantidad === undefined) {
     return res.status(400).json({
       message: 'Se requieren: id_proyecto, id_material y cantidad'
@@ -220,60 +219,69 @@ const entregarMaterialAObra = async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // 1. Verificar que el proyecto existe y no está finalizado/cancelado
+    // Verificar proyecto válido
     const proyectoQuery = 'SELECT estado FROM proyectos WHERE id = $1';
     const proyectoResult = await client.query(proyectoQuery, [id_proyecto]);
-    
     if (proyectoResult.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ message: 'Proyecto no encontrado' });
     }
 
     const estadoProyecto = proyectoResult.rows[0].estado;
-    if (estadoProyecto === 'Finalizado' || estadoProyecto === 'Cancelado') {
+    if (['Finalizado', 'Cancelado'].includes(estadoProyecto)) {
       await client.query('ROLLBACK');
       return res.status(400).json({
         message: `No se pueden entregar materiales a un proyecto en estado '${estadoProyecto}'`
       });
     }
 
-    // 2. Verificar que existe la relación proyecto-material
+    // Obtener datos del proyecto-material
     const pmQuery = `
       SELECT ofertada, en_obra, reservado 
       FROM proyecto_material 
       WHERE id_proyecto = $1 AND id_material = $2
     `;
     const pmResult = await client.query(pmQuery, [id_proyecto, id_material]);
-    
+
     if (pmResult.rows.length === 0) {
       await client.query('ROLLBACK');
-      return res.status(404).json({ 
-        message: 'El material no está asignado a este proyecto' 
+      return res.status(404).json({
+        message: 'El material no está asignado a este proyecto'
       });
     }
 
     const { ofertada, en_obra, reservado } = pmResult.rows[0];
     const nuevoEnObra = en_obra + cantidad;
+    const nuevoReservado = reservado - cantidad;
 
-    // 3. Validar que no se exceda lo ofertado
-    if (nuevoEnObra > ofertada) {
+    // Validar que haya suficiente reservado
+    if (cantidad > reservado) {
       await client.query('ROLLBACK');
       return res.status(400).json({
-        message: `No se puede exceder la cantidad ofertada. Ofertada: ${ofertada}, Actual en obra: ${en_obra}, Intenta agregar: ${cantidad}`
+        message: `No se pueden entregar ${cantidad} unidades. Solo hay ${reservado} reservadas.`
       });
     }
 
-    // 4. Actualizar el campo en_obra
+    // Validar que no se exceda lo ofertado
+    if (nuevoEnObra > ofertada) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        message: `No se puede exceder la cantidad ofertada (${ofertada}). Actualmente en obra: ${en_obra}, intenta agregar: ${cantidad}.`
+      });
+    }
+
+    // Actualizar ambos campos: en_obra y reservado
     const updateQuery = `
       UPDATE proyecto_material 
-      SET en_obra = $1 
-      WHERE id_proyecto = $2 AND id_material = $3
+      SET en_obra = $1, reservado = $2
+      WHERE id_proyecto = $3 AND id_material = $4
       RETURNING *
     `;
-    
+
     const updateResult = await client.query(updateQuery, [
-      nuevoEnObra, 
-      id_proyecto, 
+      nuevoEnObra,
+      nuevoReservado,
+      id_proyecto,
       id_material
     ]);
 
@@ -284,8 +292,10 @@ const entregarMaterialAObra = async (req, res) => {
       data: updateResult.rows[0],
       resumen: {
         anterior_en_obra: en_obra,
-        cantidad_agregada: cantidad,
         nuevo_en_obra: nuevoEnObra,
+        anterior_reservado: reservado,
+        nuevo_reservado: nuevoReservado,
+        cantidad_entregada: cantidad,
         ofertada_restante: ofertada - nuevoEnObra
       }
     });
@@ -294,11 +304,8 @@ const entregarMaterialAObra = async (req, res) => {
     await client.query('ROLLBACK');
     console.error('Error en entregarMaterialAObra:', error);
 
-    // Manejar error del trigger de estado
     if (error.message.includes('No se pueden asignar o modificar materiales')) {
-      return res.status(400).json({
-        message: error.message
-      });
+      return res.status(400).json({ message: error.message });
     }
 
     res.status(500).json({
@@ -309,6 +316,7 @@ const entregarMaterialAObra = async (req, res) => {
     client.release();
   }
 };
+
 
 /**
  * Endpoint para reservar materiales - actualiza el campo 'reservado'
