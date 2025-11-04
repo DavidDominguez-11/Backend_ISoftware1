@@ -12,7 +12,10 @@ const getReporteMateriales = async (req, res) => {
       fecha_fin, 
       material_ids, 
       tipo_movimiento, 
-      proyecto_id 
+      proyecto_id,
+      limit = 50,
+      offset = 0,
+      formato = 'json'
     } = req.query;
 
     // Construir filtros dinámicos
@@ -21,8 +24,8 @@ const getReporteMateriales = async (req, res) => {
     // Filtro por rango de fechas
     if (fecha_inicio || fecha_fin) {
       where.fecha = {};
-      if (fecha_inicio) where.fecha.gte = new Date(fecha_inicio);
-      if (fecha_fin) where.fecha.lte = new Date(fecha_fin);
+      if (fecha_inicio) where.fecha.gte = new Date(fecha_inicio + 'T00:00:00.000Z');
+      if (fecha_fin) where.fecha.lte = new Date(fecha_fin + 'T23:59:59.999Z');
     }
 
     // Filtro por material(es)
@@ -43,7 +46,10 @@ const getReporteMateriales = async (req, res) => {
       where.proyecto_id = parseInt(proyecto_id);
     }
 
-    // Obtener movimientos de bodega con relaciones
+    // Obtener conteo total para paginación
+    const totalRegistros = await prisma.bodega_materiales.count({ where });
+
+    // Obtener movimientos de bodega con relaciones y paginación
     const movimientos = await prisma.bodega_materiales.findMany({
       where,
       include: {
@@ -62,7 +68,9 @@ const getReporteMateriales = async (req, res) => {
       orderBy: [
         { fecha: 'desc' },
         { id: 'desc' }
-      ]
+      ],
+      take: parseInt(limit),
+      skip: parseInt(offset)
     });
 
     // Calcular nivel de stock para cada material único en el reporte
@@ -130,7 +138,20 @@ const getReporteMateriales = async (req, res) => {
         tipo_movimiento: tipo_movimiento || 'Todos',
         proyecto_id: proyecto_id || 'Todos'
       },
-      total_registros: reporteData.length,
+      paginacion: {
+        total_registros: totalRegistros,
+        registros_mostrados: reporteData.length,
+        pagina_actual: Math.floor(parseInt(offset) / parseInt(limit)) + 1,
+        total_paginas: Math.ceil(totalRegistros / parseInt(limit)),
+        limite_por_pagina: parseInt(limit),
+        offset: parseInt(offset)
+      },
+      estadisticas: {
+        entradas: reporteData.filter(r => r.tipo_movimiento === 'entrada').length,
+        salidas: reporteData.filter(r => r.tipo_movimiento === 'salida').length,
+        materiales_unicos: [...new Set(reporteData.map(r => r.codigo))].length,
+        proyectos_unicos: [...new Set(reporteData.map(r => r.proyecto).filter(p => p !== 'N/A'))].length
+      },
       datos: reporteData
     });
 
@@ -156,7 +177,9 @@ const getReporteProyectos = async (req, res) => {
       nombre_proyecto, 
       cliente_id, 
       estado, 
-      tipo_servicio 
+      tipo_servicio,
+      limit = 50,
+      offset = 0
     } = req.query;
 
     // Construir filtros dinámicos
@@ -165,8 +188,8 @@ const getReporteProyectos = async (req, res) => {
     // Filtro por rango de fechas de inicio
     if (fecha_inicio || fecha_fin) {
       where.fecha_inicio = {};
-      if (fecha_inicio) where.fecha_inicio.gte = new Date(fecha_inicio);
-      if (fecha_fin) where.fecha_inicio.lte = new Date(fecha_fin);
+      if (fecha_inicio) where.fecha_inicio.gte = new Date(fecha_inicio + 'T00:00:00.000Z');
+      if (fecha_fin) where.fecha_inicio.lte = new Date(fecha_fin + 'T23:59:59.999Z');
     }
 
     // Filtro por nombre del proyecto
@@ -192,34 +215,58 @@ const getReporteProyectos = async (req, res) => {
       where.tipo_servicio = tipo_servicio;
     }
 
-    // Obtener proyectos con relaciones
+    // Obtener conteo total para paginación
+    const totalRegistros = await prisma.proyectos.count({ where });
+
+    // Obtener proyectos con relaciones y paginación
     const proyectos = await prisma.proyectos.findMany({
       where,
       include: {
         cliente: {
           select: {
             nombre: true,
-            telefono: true
+            telefono: true,
+            email: true
+          }
+        },
+        proyecto_material: {
+          select: {
+            _count: true
           }
         }
       },
       orderBy: [
         { fecha_inicio: 'desc' },
         { id: 'desc' }
-      ]
+      ],
+      take: parseInt(limit),
+      skip: parseInt(offset)
     });
 
     const reporteData = proyectos.map(proyecto => ({
       id: proyecto.id,
       nombre: proyecto.nombre,
       cliente: proyecto.cliente?.nombre || 'N/A',
+      cliente_email: proyecto.cliente?.email || 'N/A',
+      cliente_telefono: proyecto.cliente?.telefono || 'N/A',
       estado: proyecto.estado,
       tipo_servicio: proyecto.tipo_servicio,
       fecha_inicio: proyecto.fecha_inicio,
       fecha_fin: proyecto.fecha_fin,
       presupuesto: proyecto.presupuesto,
-      ubicacion: proyecto.ubicacion
+      ubicacion: proyecto.ubicacion,
+      materiales_count: proyecto.proyecto_material.length
     }));
+
+    // Calcular estadísticas
+    const estadisticasEstado = {
+      solicitado: reporteData.filter(p => p.estado === 'solicitado').length,
+      en_progreso: reporteData.filter(p => p.estado === 'en_progreso').length,
+      finalizado: reporteData.filter(p => p.estado === 'finalizado').length,
+      cancelado: reporteData.filter(p => p.estado === 'cancelado').length
+    };
+
+    const presupuestoTotal = reporteData.reduce((sum, p) => sum + (p.presupuesto || 0), 0);
 
     res.json({
       filtros_aplicados: {
@@ -230,7 +277,20 @@ const getReporteProyectos = async (req, res) => {
         estado: estado || 'Todos',
         tipo_servicio: tipo_servicio || 'Todos'
       },
-      total_registros: reporteData.length,
+      paginacion: {
+        total_registros: totalRegistros,
+        registros_mostrados: reporteData.length,
+        pagina_actual: Math.floor(parseInt(offset) / parseInt(limit)) + 1,
+        total_paginas: Math.ceil(totalRegistros / parseInt(limit)),
+        limite_por_pagina: parseInt(limit),
+        offset: parseInt(offset)
+      },
+      estadisticas: {
+        por_estado: estadisticasEstado,
+        presupuesto_total: presupuestoTotal,
+        clientes_unicos: [...new Set(reporteData.map(r => r.cliente).filter(c => c !== 'N/A'))].length,
+        tipos_servicio_unicos: [...new Set(reporteData.map(r => r.tipo_servicio))].length
+      },
       datos: reporteData
     });
 
