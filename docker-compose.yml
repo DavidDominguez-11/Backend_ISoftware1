@@ -1,6 +1,27 @@
+version: '3.8'
+
 services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: my-postgres
+    environment:
+      POSTGRES_USER: usuario
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: test_db
+    ports:
+      - "5431:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/1_init.sql
+      - ./data.sql:/docker-entrypoint-initdb.d/2_data.sql
+
   backend:
-    image: daviddominguez11/poolcenter-backend:latest   # la imagen publicada
+    image: daviddominguez11/poolcenter-backend:latest
+    container_name: my-backend
+    ports:
+      - "4000:4000"
+    env_file:
+      - .env
     environment:
       DB_HOST: postgres
       POSTGRES_USER: usuario
@@ -8,18 +29,12 @@ services:
       POSTGRES_DB: test_db
       PORT_DB: 5432
       SERVER_PORT_TEST: 4000
-    ports:
-      - "4000:4000"
     depends_on:
       - postgres
-
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_USER: usuario
-      POSTGRES_PASSWORD: secret
-      POSTGRES_DB: test_db
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # 🔒 Monta los certificados desde el host al contenedor
+      - /etc/ssl/private/cloudflare-origin.key:/etc/ssl/private/cloudflare-origin.key:ro
+      - /etc/ssl/certs/cloudflare-origin.pem:/etc/ssl/certs/cloudflare-origin.pem:ro
+
 volumes:
   postgres_data:
