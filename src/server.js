@@ -5,7 +5,7 @@ const https = require('https');
 const app = require('./app');
 
 // ⚙️ Configura los puertos
-const HTTP_PORT = process.env.SERVER_PORT_TEST || 80;
+const HTTP_PORT = 8080;
 const HTTPS_PORT = process.env.SERVER_PORT || 4000;
 
 // 🧠 Tu dominio (solo para logs)
