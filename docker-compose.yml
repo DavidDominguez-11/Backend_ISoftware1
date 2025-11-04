@@ -1,36 +1,25 @@
-version: '3.8'
-
 services:
-  postgres:
-    image: daviddominguez11/poolcenter-backend
-    container_name: my-postgres
+  backend:
+    image: daviddominguez11/poolcenter-backend:latest   # la imagen publicada
     environment:
+      DB_HOST: postgres
       POSTGRES_USER: usuario
       POSTGRES_PASSWORD: secret
       POSTGRES_DB: test_db
-    ports:
-      - "5431:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/1_init.sql  # SQL inicial
-      - ./data.sql:/docker-entrypoint-initdb.d/2_data.sql
-
-  backend:
-    build: .  # Usa tu Dockerfile existente
-    container_name: my-backend
+      PORT_DB: 5432
+      SERVER_PORT_TEST: 4000
     ports:
       - "4000:4000"
-    env_file:
-      - .env
-    environment:
-      DB_HOST: postgres  # Usa el nombre del servicio de PostgreSQL
-      POSTGRES_USER: usuario
-      POSTGRES_PASSWORD: secret
-      POSTGRES_DB: test_db
-      PORT_DB: 5432  # Puerto interno del contenedor PostgreSQL
-      SERVER_PORT_TEST: 4000  # Puerto para la aplicación Node.js
     depends_on:
       - postgres
 
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: usuario
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: test_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 volumes:
   postgres_data:
