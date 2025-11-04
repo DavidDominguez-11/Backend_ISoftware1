@@ -16,7 +16,7 @@ services:
       - ./data.sql:/docker-entrypoint-initdb.d/2_data.sql
 
   backend:
-    image: daviddominguez11/poolcenter-backend:latest
+    build: .
     container_name: my-backend
     ports:
       - "4000:4000"
