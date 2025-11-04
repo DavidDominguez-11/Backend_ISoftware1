@@ -458,9 +458,279 @@ const getReporteResumenStock = async (req, res) => {
   }
 };
 
+/**
+ * EXPORTAR REPORTE DE MATERIALES A CSV
+ * Genera y devuelve archivo CSV con reporte de materiales
+ */
+const exportReporteMaterialesCSV = async (req, res) => {
+  try {
+    // Usar la misma lógica que getReporteMateriales pero sin paginación
+    const { 
+      fecha_inicio, 
+      fecha_fin, 
+      material_ids, 
+      tipo_movimiento, 
+      proyecto_id 
+    } = req.query;
+
+    // Construir filtros (misma lógica que antes)
+    const where = {};
+    if (fecha_inicio || fecha_fin) {
+      where.fecha = {};
+      if (fecha_inicio) where.fecha.gte = new Date(fecha_inicio + 'T00:00:00.000Z');
+      if (fecha_fin) where.fecha.lte = new Date(fecha_fin + 'T23:59:59.999Z');
+    }
+    if (material_ids) {
+      const materialIdsArray = Array.isArray(material_ids) 
+        ? material_ids.map(id => parseInt(id))
+        : [parseInt(material_ids)];
+      where.material_id = { in: materialIdsArray };
+    }
+    if (tipo_movimiento && tipo_movimiento !== 'todos') {
+      where.tipo = tipo_movimiento;
+    }
+    if (proyecto_id) {
+      where.proyecto_id = parseInt(proyecto_id);
+    }
+
+    // Obtener TODOS los movimientos (sin limit/offset para exportación completa)
+    const movimientos = await prisma.bodega_materiales.findMany({
+      where,
+      include: {
+        material: {
+          select: {
+            codigo: true,
+            material: true
+          }
+        },
+        proyecto: {
+          select: {
+            nombre: true
+          }
+        }
+      },
+      orderBy: [
+        { fecha: 'desc' },
+        { id: 'desc' }
+      ]
+    });
+
+    // Calcular stock para materiales únicos (misma lógica optimizada)
+    const materialIdsUnicos = [...new Set(movimientos.map(mov => mov.material_id))];
+    const stockData = await Promise.all(materialIdsUnicos.map(async (materialId) => {
+      const [stockBodega, stockProyectos] = await Promise.all([
+        prisma.bodega_materiales.aggregate({
+          _sum: { cantidad: true },
+          where: { material_id: materialId }
+        }),
+        prisma.proyecto_material.aggregate({
+          _sum: { ofertada: true },
+          where: { id_material: materialId }
+        })
+      ]);
+
+      const enBodega = stockBodega._sum.cantidad || 0;
+      const ofertada = stockProyectos._sum.ofertada || 0;
+
+      let nivelStock;
+      if (enBodega <= 0) {
+        nivelStock = 'Sin stock';
+      } else {
+        const porcentajeOfertado = (ofertada * 100.0) / enBodega;
+        if (porcentajeOfertado < 30) nivelStock = 'Alto';
+        else if (porcentajeOfertado <= 70) nivelStock = 'Medio';
+        else nivelStock = 'Bajo';
+      }
+
+      return { material_id: materialId, nivel_stock: nivelStock, stock_actual: enBodega };
+    }));
+
+    // Preparar datos para CSV
+    const csvData = movimientos.map(mov => {
+      const stockInfo = stockData.find(s => s.material_id === mov.material_id);
+      const fecha = new Date(mov.fecha).toLocaleDateString('es-ES');
+      
+      return {
+        Fecha: fecha,
+        Codigo: mov.material?.codigo || 'N/A',
+        Material: mov.material?.material || 'N/A',
+        'Tipo Movimiento': mov.tipo,
+        Cantidad: mov.cantidad,
+        Proyecto: mov.proyecto?.nombre || 'N/A',
+        'Nivel Stock': stockInfo?.nivel_stock || 'N/A',
+        'Stock Actual': stockInfo?.stock_actual || 0
+      };
+    });
+
+    // Generar CSV header
+    const headers = Object.keys(csvData[0] || {});
+    let csvContent = headers.join(',') + '\n';
+
+    // Añadir filas de datos
+    csvData.forEach(row => {
+      const values = headers.map(header => {
+        const value = row[header] || '';
+        // Escapar comillas y envolver en comillas si contiene comas
+        return typeof value === 'string' && (value.includes(',') || value.includes('"')) 
+          ? `"${value.replace(/"/g, '""')}"` 
+          : value;
+      });
+      csvContent += values.join(',') + '\n';
+    });
+
+    // Configurar headers para descarga de archivo
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+    const filename = `reporte_materiales_${timestamp}.csv`;
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'no-cache');
+
+    // Añadir BOM para UTF-8 (para Excel)
+    res.write('\ufeff');
+    res.send(csvContent);
+
+  } catch (error) {
+    console.error('Error en exportReporteMaterialesCSV:', error);
+    res.status(500).json({ 
+      message: 'Error del servidor al exportar reporte',
+      error: error.message 
+    });
+  }
+};
+
+/**
+ * OBTENER ESTADÍSTICAS GENERALES DE REPORTES
+ * Dashboard con métricas principales
+ */
+const getEstadisticasGenerales = async (req, res) => {
+  try {
+    // Ejecutar múltiples queries en paralelo para mejor performance
+    const [
+      totalMateriales,
+      totalProyectos,
+      totalClientes,
+      movimientosUltimos30Dias,
+      proyectosActivos,
+      materialesBajoStock
+    ] = await Promise.all([
+      // Total de materiales
+      prisma.materiales.count(),
+      
+      // Total de proyectos
+      prisma.proyectos.count(),
+      
+      // Total de clientes
+      prisma.clientes.count(),
+      
+      // Movimientos de los últimos 30 días
+      prisma.bodega_materiales.count({
+        where: {
+          fecha: {
+            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+          }
+        }
+      }),
+      
+      // Proyectos activos (en progreso)
+      prisma.proyectos.count({
+        where: { estado: 'en_progreso' }
+      }),
+      
+      // Materiales (para calcular stock bajo)
+      prisma.materiales.findMany({
+        take: 100 // Limitamos para performance, en producción podría ser configurable
+      })
+    ]);
+
+    // Calcular materiales con stock bajo
+    const materialesConStockBajo = await Promise.all(
+      materialesBajoStock.map(async (material) => {
+        const [stockBodega, stockProyectos] = await Promise.all([
+          prisma.bodega_materiales.aggregate({
+            _sum: { cantidad: true },
+            where: { material_id: material.id }
+          }),
+          prisma.proyecto_material.aggregate({
+            _sum: { ofertada: true },
+            where: { id_material: material.id }
+          })
+        ]);
+
+        const enBodega = stockBodega._sum.cantidad || 0;
+        const ofertada = stockProyectos._sum.ofertada || 0;
+
+        if (enBodega <= 0) return { ...material, nivel: 'Sin stock' };
+        
+        const porcentajeOfertado = (ofertada * 100.0) / enBodega;
+        if (porcentajeOfertado >= 70) return { ...material, nivel: 'Bajo' };
+        
+        return null;
+      })
+    );
+
+    const countStockBajo = materialesConStockBajo.filter(m => m && (m.nivel === 'Bajo' || m.nivel === 'Sin stock')).length;
+
+    // Estadísticas de movimientos por tipo (últimos 30 días)
+    const movimientosPorTipo = await prisma.bodega_materiales.groupBy({
+      by: ['tipo'],
+      _count: { tipo: true },
+      _sum: { cantidad: true },
+      where: {
+        fecha: {
+          gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        }
+      }
+    });
+
+    // Proyectos por estado
+    const proyectosPorEstado = await prisma.proyectos.groupBy({
+      by: ['estado'],
+      _count: { estado: true }
+    });
+
+    // Presupuesto total de proyectos activos
+    const presupuestoTotal = await prisma.proyectos.aggregate({
+      _sum: { presupuesto: true },
+      where: { estado: 'en_progreso' }
+    });
+
+    res.json({
+      resumen: {
+        total_materiales: totalMateriales,
+        total_proyectos: totalProyectos,
+        total_clientes: totalClientes,
+        proyectos_activos: proyectosActivos,
+        materiales_stock_bajo: countStockBajo,
+        movimientos_ultimo_mes: movimientosUltimos30Dias,
+        presupuesto_proyectos_activos: presupuestoTotal._sum.presupuesto || 0
+      },
+      movimientos_por_tipo: movimientosPorTipo.map(m => ({
+        tipo: m.tipo,
+        cantidad_movimientos: m._count.tipo,
+        total_cantidad: Math.abs(m._sum.cantidad || 0)
+      })),
+      proyectos_por_estado: proyectosPorEstado.map(p => ({
+        estado: p.estado,
+        cantidad: p._count.estado
+      })),
+      fecha_generacion: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error en getEstadisticasGenerales:', error);
+    res.status(500).json({ 
+      message: 'Error del servidor al obtener estadísticas generales',
+      error: error.message 
+    });
+  }
+};
+
 module.exports = {
   getReporteMateriales,
   getReporteProyectos,
   getFiltrosDisponibles,
-  getReporteResumenStock
+  getReporteResumenStock,
+  exportReporteMaterialesCSV,
+  getEstadisticasGenerales
 };

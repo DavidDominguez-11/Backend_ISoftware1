@@ -4,7 +4,9 @@ const {
   getReporteMateriales,
   getReporteProyectos,
   getFiltrosDisponibles,
-  getReporteResumenStock
+  getReporteResumenStock,
+  exportReporteMaterialesCSV,
+  getEstadisticasGenerales
 } = require('../controllers/reportesController');
 
 const {
@@ -55,5 +57,24 @@ router.get('/stock', getReporteResumenStock);
  * @access Public
  */
 router.get('/filtros', getFiltrosDisponibles);
+
+/**
+ * @route GET /services/reportes/materiales/export/csv
+ * @desc Exportar reporte de materiales en formato CSV
+ * @query {string} fecha_inicio - Fecha de inicio (YYYY-MM-DD)
+ * @query {string} fecha_fin - Fecha de fin (YYYY-MM-DD)
+ * @query {string|array} material_ids - ID(s) de material(es)
+ * @query {string} tipo_movimiento - entrada|salida|todos
+ * @query {string} proyecto_id - ID del proyecto
+ * @access Public
+ */
+router.get('/materiales/export/csv', validateReporteMaterialesParams, exportReporteMaterialesCSV);
+
+/**
+ * @route GET /services/reportes/estadisticas
+ * @desc Obtener estadísticas generales para dashboard
+ * @access Public
+ */
+router.get('/estadisticas', getEstadisticasGenerales);
 
 module.exports = router;
