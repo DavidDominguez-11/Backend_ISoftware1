@@ -25,6 +25,7 @@ app.use('/services/projects', require('./routes/projectRoutes'));
 app.use('/services/materiales', require('./routes/materialRoutes'));
 app.use('/services/users', require('./routes/userRoutes'));
 app.use('/services/register-user-rol', require('./routes/registerUserRolRoutes'));
+app.use('/services/reportes', require('./routes/reportesRoutes'));
 const registerUserRolRoutes = require('./routes/registerUserRolRoutes');
 const getEstadoMaterial = require('./routes/estado_materialesRoutes');
 const getBodegaMateriales = require('./routes/bodegaMaterialesRoutes');
