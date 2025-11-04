@@ -17,20 +17,22 @@ jobs:
         run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
       - name: 🏗️ Construir imagen Docker
-        run: docker build -t daviddominguez11/poolcenter-backend:latest .
+        run: docker build -t ${{ secrets.IMAGE_NAME }}:latest .
 
       - name: 📦 Subir imagen a Docker Hub
-        run: docker push daviddominguez11/poolcenter-backend:latest
+        run: docker push ${{ secrets.IMAGE_NAME }}:latest
 
       - name: ⚡ Desplegar en el servidor remoto
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
           script: |
-            cd ~/test1/Backend_ISoftware1
+            cd ${{ secrets.REMOTE_APP_PATH }}
             docker compose pull
             docker compose down
             docker compose up -d
             docker image prune -f
+
