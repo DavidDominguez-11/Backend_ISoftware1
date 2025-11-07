@@ -145,12 +145,13 @@ INSERT INTO bodega_materiales (material_id, tipo, cantidad, fecha, proyecto_id, 
 -- PROYECTO_MATERIAL
 INSERT INTO proyecto_material (id_proyecto, id_material, ofertada, en_obra, reservado) VALUES
 -- Proyecto 2: Piscina Hotel Costa Azul
-(2, 1, 60, 50, 0),  -- Cemento
+(2, 1, 60, 50, 10),  -- Cemento
 (2, 2, 85, 80, 0),  -- Arena
 (2, 3, 90, 60, 0),  -- Grava
 
 -- Proyecto 3: Jacuzzi Club Náutico del Lago
 (3, 4, 30, 30, 0),  -- Varilla
+(3, 1, 10, 0, 5),
 (3, 7, 20, 0, 0),  -- Mortero
 
 -- Proyecto 4: Paneles Solares Residencial Las Palmas

@@ -17,18 +17,27 @@ const ESTADO_PROYECTO_ENUM = ['Solicitado','En Progreso','Finalizado','Cancelado
 // Obtener todos los proyectos
 const getProjects = async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM proyectos');
-    
+    const query = `
+      SELECT 
+        p.*, 
+        c.nombre AS nombre_cliente
+      FROM proyectos p
+      JOIN clientes c ON p.cliente_id = c.id
+    `;
+
+    const result = await pool.query(query);
+
     if (result.rows.length === 0) {
       return res.status(404).json({ message: 'No se encontraron proyectos' });
     }
-    
+
     res.json(result.rows);
   } catch (error) {
     console.error('Error en getProjects:', error);
     res.status(500).json({ message: 'Error del servidor' });
   }
 };
+
 
 /**
  * Obtiene la lista completa de proyectos con estado 'finalizado'.

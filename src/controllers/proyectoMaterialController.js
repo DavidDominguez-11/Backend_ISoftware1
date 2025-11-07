@@ -135,7 +135,6 @@ const createProyectoMaterial = async (req, res) => {
  * Obtiene todos los materiales para un proyecto específico, dado su ID.*/
 // controllers/projectMaterials.controller.js
 const getProyectoMaterialById = async (req, res) => {
-  // ✅ Acepta ambos nombres de parámetro
   const projectIdRaw = req.params.projectId ?? req.params.id_proyecto;
   const projectId = parseInt(projectIdRaw, 10);
 
@@ -166,11 +165,7 @@ const getProyectoMaterialById = async (req, res) => {
         COALESCE(b.en_bodega, 0)                        AS en_bodega,
         COALESCE(rv.reservado_total, 0)                 AS reservado_total,
         (COALESCE(b.en_bodega,0) - COALESCE(rv.reservado_total,0)) AS disponible_global,
-        GREATEST(
-          0,
-          (pm.ofertada - pm.en_obra)
-          - (COALESCE(b.en_bodega,0) - COALESCE(rv.reservado_total,0))
-        )                                               AS pendiente_compra
+        GREATEST(0, (pm.ofertada - pm.reservado - pm.en_obra))      AS pendiente_compra
       FROM proyecto_material pm
       JOIN materiales m      ON m.id = pm.id_material
       LEFT JOIN bodega   b   ON b.material_id  = pm.id_material
@@ -181,7 +176,6 @@ const getProyectoMaterialById = async (req, res) => {
 
     const { rows } = await pool.query(q, [projectId]);
 
-    // ✅ siempre devuelve { data: [...] }
     if (rows.length === 0) {
       return res.status(200).json({
         message: `No se encontraron materiales para el proyecto con ID ${projectId}`,
@@ -190,7 +184,6 @@ const getProyectoMaterialById = async (req, res) => {
     }
 
     return res.status(200).json({ data: rows });
-
   } catch (e) {
     console.error("Error en getProyectoMaterialById:", e);
     return res.status(500).json({
@@ -201,8 +194,251 @@ const getProyectoMaterialById = async (req, res) => {
 };
 
 
+/**
+ * Endpoint para entregar materiales a obra - actualiza el campo 'en_obra'
+ * Recibe: { id_proyecto, id_material, cantidad } 
+ * Incrementa en_obra en la cantidad especificada
+ */
+const entregarMaterialAObra = async (req, res) => {
+  const { id_proyecto, id_material, cantidad } = req.body;
+
+  if (!id_proyecto || !id_material || cantidad === undefined) {
+    return res.status(400).json({
+      message: 'Se requieren: id_proyecto, id_material y cantidad'
+    });
+  }
+
+  if (typeof cantidad !== 'number' || cantidad <= 0) {
+    return res.status(400).json({
+      message: 'La cantidad debe ser un número positivo'
+    });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Verificar proyecto válido
+    const proyectoQuery = 'SELECT estado FROM proyectos WHERE id = $1';
+    const proyectoResult = await client.query(proyectoQuery, [id_proyecto]);
+    if (proyectoResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ message: 'Proyecto no encontrado' });
+    }
+
+    const estadoProyecto = proyectoResult.rows[0].estado;
+    if (['Finalizado', 'Cancelado'].includes(estadoProyecto)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        message: `No se pueden entregar materiales a un proyecto en estado '${estadoProyecto}'`
+      });
+    }
+
+    // Obtener datos del proyecto-material
+    const pmQuery = `
+      SELECT ofertada, en_obra, reservado 
+      FROM proyecto_material 
+      WHERE id_proyecto = $1 AND id_material = $2
+    `;
+    const pmResult = await client.query(pmQuery, [id_proyecto, id_material]);
+
+    if (pmResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({
+        message: 'El material no está asignado a este proyecto'
+      });
+    }
+
+    const { ofertada, en_obra, reservado } = pmResult.rows[0];
+    const nuevoEnObra = en_obra + cantidad;
+    const nuevoReservado = reservado - cantidad;
+
+    // Validar que haya suficiente reservado
+    if (cantidad > reservado) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        message: `No se pueden entregar ${cantidad} unidades. Solo hay ${reservado} reservadas.`
+      });
+    }
+
+    // Validar que no se exceda lo ofertado
+    if (nuevoEnObra > ofertada) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        message: `No se puede exceder la cantidad ofertada (${ofertada}). Actualmente en obra: ${en_obra}, intenta agregar: ${cantidad}.`
+      });
+    }
+
+    // Actualizar ambos campos: en_obra y reservado
+    const updateQuery = `
+      UPDATE proyecto_material 
+      SET en_obra = $1, reservado = $2
+      WHERE id_proyecto = $3 AND id_material = $4
+      RETURNING *
+    `;
+
+    const updateResult = await client.query(updateQuery, [
+      nuevoEnObra,
+      nuevoReservado,
+      id_proyecto,
+      id_material
+    ]);
+
+    await client.query('COMMIT');
+
+    res.json({
+      message: 'Material entregado a obra exitosamente',
+      data: updateResult.rows[0],
+      resumen: {
+        anterior_en_obra: en_obra,
+        nuevo_en_obra: nuevoEnObra,
+        anterior_reservado: reservado,
+        nuevo_reservado: nuevoReservado,
+        cantidad_entregada: cantidad,
+        ofertada_restante: ofertada - nuevoEnObra
+      }
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error en entregarMaterialAObra:', error);
+
+    if (error.message.includes('No se pueden asignar o modificar materiales')) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    res.status(500).json({
+      message: 'Error del servidor al entregar material a obra',
+      error: error.message
+    });
+  } finally {
+    client.release();
+  }
+};
+
+
+/**
+ * Endpoint para reservar materiales - actualiza el campo 'reservado'
+ * Recibe: { id_proyecto, id_material, cantidad } 
+ * Incrementa 'reservado' en la cantidad especificada
+ */
+const reservarMaterial = async (req, res) => {
+  const { id_proyecto, id_material, cantidad } = req.body;
+
+  // Validaciones básicas
+  if (!id_proyecto || !id_material || cantidad === undefined) {
+    return res.status(400).json({
+      message: 'Se requieren: id_proyecto, id_material y cantidad'
+    });
+  }
+
+  if (typeof cantidad !== 'number' || cantidad <= 0) {
+    return res.status(400).json({
+      message: 'La cantidad debe ser un número positivo'
+    });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // 1. Verificar que el proyecto existe y no está finalizado/cancelado
+    const proyectoQuery = 'SELECT estado FROM proyectos WHERE id = $1';
+    const proyectoResult = await client.query(proyectoQuery, [id_proyecto]);
+    
+    if (proyectoResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ message: 'Proyecto no encontrado' });
+    }
+
+    const estadoProyecto = proyectoResult.rows[0].estado;
+    if (estadoProyecto === 'Finalizado' || estadoProyecto === 'Cancelado') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        message: `No se pueden reservar materiales en un proyecto en estado '${estadoProyecto}'`
+      });
+    }
+
+    // 2. Verificar que existe la relación proyecto-material
+    const pmQuery = `
+      SELECT ofertada, en_obra, reservado 
+      FROM proyecto_material 
+      WHERE id_proyecto = $1 AND id_material = $2
+    `;
+    const pmResult = await client.query(pmQuery, [id_proyecto, id_material]);
+    
+    if (pmResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ 
+        message: 'El material no está asignado a este proyecto' 
+      });
+    }
+
+    const { ofertada, en_obra, reservado } = pmResult.rows[0];
+    const nuevoReservado = reservado + cantidad;
+
+    // 3. Validar que no se exceda lo ofertada (reservado + en_obra no debe exceder ofertada)
+    const totalComprometido = nuevoReservado + en_obra;
+    if (totalComprometido > ofertada) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        message: `No se puede reservar más materiales de los disponibles. Ofertada: ${ofertada}, Actual en obra: ${en_obra}, Actual reservado: ${reservado}, Intenta agregar: ${cantidad}. Total comprometido (${totalComprometido}) excede la cantidad ofertada (${ofertada}).`
+      });
+    }
+
+    // 4. Actualizar el campo reservado
+    const updateQuery = `
+      UPDATE proyecto_material 
+      SET reservado = $1 
+      WHERE id_proyecto = $2 AND id_material = $3
+      RETURNING *
+    `;
+    
+    const updateResult = await client.query(updateQuery, [
+      nuevoReservado, 
+      id_proyecto, 
+      id_material
+    ]);
+
+    await client.query('COMMIT');
+
+    res.json({
+      message: 'Material reservado exitosamente',
+      data: updateResult.rows[0],
+      resumen: {
+        anterior_reservado: reservado,
+        cantidad_agregada: cantidad,
+        nuevo_reservado: nuevoReservado,
+        ofertada_restante_para_reservar: ofertada - totalComprometido
+      }
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error en reservarMaterial:', error);
+
+    // Manejar error del trigger de estado si aplica
+    if (error.message.includes('No se pueden asignar o modificar materiales')) {
+      return res.status(400).json({
+        message: error.message
+      });
+    }
+
+    res.status(500).json({
+      message: 'Error del servidor al reservar material',
+      error: error.message
+    });
+  } finally {
+    client.release();
+  }
+};
+
 module.exports = {
   getProyectoMaterialEnProgreso,
   createProyectoMaterial,
   getProyectoMaterialById,
+  entregarMaterialAObra,
+  reservarMaterial
 };
