@@ -52,7 +52,61 @@ const getReportes = async (req, res) => {
   }
 };
 
+/**
+ * Obtiene reportes de un proyecto específico
+ */
+const getReportesPorProyecto = async (req, res) => {
+  try {
+    const { proyecto_id } = req.params;
+
+    const query = `
+      SELECT 
+        r.id,
+        r.id_proyecto,
+        p.nombre AS nombre_proyecto,
+        r.fecha_creacion,
+        r.avance,
+        r.actividades,
+        r.problemas_obs,
+        r.proximos_pasos,
+        r.responsable_id,
+        u.nombre AS nombre_responsable,
+        u.email AS email_responsable
+      FROM reportes r
+      JOIN proyectos p ON r.id_proyecto = p.id
+      JOIN usuarios u ON r.responsable_id = u.id
+      WHERE r.id_proyecto = $1
+      ORDER BY r.fecha_creacion DESC;
+    `;
+
+    const result = await pool.query(query, [proyecto_id]);
+
+    const reportes = result.rows.map(row => ({
+      id: row.id,
+      id_proyecto: row.id_proyecto,
+      nombre_proyecto: row.nombre_proyecto,
+      fecha_creacion: row.fecha_creacion,
+      avance: row.avance,
+      actividades: row.actividades,
+      problemas_obs: row.problemas_obs,
+      proximos_pasos: row.proximos_pasos,
+      responsable_id: row.responsable_id,
+      nombre_responsable: row.nombre_responsable,
+      email_responsable: row.email_responsable
+    }));
+
+    res.json(reportes);
+
+  } catch (error) {
+    console.error('Error en getReportesPorProyecto:', error);
+    res.status(500).json({ 
+      message: 'Error del servidor al obtener reportes del proyecto',
+      error: error.message 
+    });
+  }
+};
 
 module.exports = {
   getReportes,
+  getReportesPorProyecto
 };

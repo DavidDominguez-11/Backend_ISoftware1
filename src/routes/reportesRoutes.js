@@ -5,9 +5,11 @@ const router = express.Router();
 // Importar el controlador
 const { 
   getReportes, 
+  getReportesPorProyecto, 
 } = require('../controllers/reportesController');
 
 // Definir las rutas para reportes
 router.get('/proyectos/reportes', getReportes);
+router.get('/proyectos/:proyecto_id/reportes', getReportesPorProyecto);
 
 module.exports = router;
