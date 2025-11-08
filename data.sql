@@ -183,7 +183,7 @@ INSERT INTO proyecto_material (id_proyecto, id_material, ofertada, en_obra, rese
 -- PRB02 tiene 50 en obra, menos que stock 200 -> no alertas
 ((SELECT id FROM proyectos LIMIT 1), (SELECT id FROM materiales WHERE codigo='PRB02'), 50, 50, 0);
 
-INSERT INTO reportes (id_proyecto, avance, actividades, problemas, proximos_pasos, responsable_id)
+INSERT INTO reportes (id_proyecto, avance, actividades, problemas_obs, proximos_pasos, responsable_id)
 VALUES
 -- ========================
 -- PROYECTO 2: Piscina Hotel Costa Azul (3 reportes)
@@ -200,13 +200,13 @@ VALUES
 -- ========================
 -- PROYECTO 4: Paneles Solares Residencial Las Palmas (5 reportes)
 -- ========================
-(4, 15, 'Revisión del techo y medición de superficie para instalación de soportes.', NULL, 'Colocar bases metálicas para los paneles.', 2),
+(4, 15, 'Revisión del techo y medición de superficie para instalación de soportes.', '', 'Colocar bases metálicas para los paneles.', 2),
 (4, 35, 'Estructuras metálicas instaladas y niveladas.', 'Lluvia impidió continuar con cableado.', 'Reprogramar tendido eléctrico.', 2),
-(4, 58, 'Cableado interno completado. Inversor recibido en bodega.', NULL, 'Montar paneles solares y realizar conexión inicial.', 2),
+(4, 58, 'Cableado interno completado. Inversor recibido en bodega.', '', 'Montar paneles solares y realizar conexión inicial.', 2),
 (4, 78, 'Paneles montados y conexión preliminar establecida.', 'Cliente pidió ajustar la orientación de 10 paneles.', 'Reorientar paneles y asegurar estructura.', 2),
-(4, 100, 'Instalación finalizada. Generación de energía verificada con éxito.', NULL, 'Entrega de documentación y cierre de proyecto.', 1),
+(4, 100, 'Instalación finalizada. Generación de energía verificada con éxito.', '', 'Entrega de documentación y cierre de proyecto.', 1),
 
 -- ========================
 -- PROYECTO 5: Piscina Hotel Mar y Sol (1 reporte)
 -- ========================
-(5, 100, 'Proyecto completado. Pruebas hidráulicas y entrega al cliente realizadas.', NULL, 'Dar mantenimiento de cortesía en 3 meses.', 1);
+(5, 100, 'Proyecto completado. Pruebas hidráulicas y entrega al cliente realizadas.', '', 'Dar mantenimiento de cortesía en 3 meses.', 1);
