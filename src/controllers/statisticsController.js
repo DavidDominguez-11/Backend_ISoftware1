@@ -1,4 +1,4 @@
-//statisticsController
+//controllers/statisticsController.js
 const pool = require('../config/db');
 
 /**
