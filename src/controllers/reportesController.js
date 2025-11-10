@@ -203,8 +203,118 @@ const crearReporte = async (req, res) => {
   }
 };
 
+/**
+ * Obtiene la información completa de un reporte para generar PDF
+ */
+const getReporteParaPDF = async (req, res) => {
+  try {
+    const { reporte_id } = req.params;
+
+    // Validar que el ID sea numérico
+    if (isNaN(reporte_id) || !Number.isInteger(Number(reporte_id))) {
+      return res.status(400).json({ 
+        message: 'El ID del reporte debe ser un número entero válido' 
+      });
+    }
+
+    const query = `
+      SELECT 
+        r.id,
+        r.id_proyecto,
+        p.nombre AS nombre_proyecto,
+        p.estado AS estado_proyecto,
+        p.presupuesto,
+        p.fecha_inicio,
+        p.fecha_fin,
+        p.ubicacion,
+        p.tipo_servicio,
+        r.fecha_creacion,
+        r.avance,
+        r.actividades,
+        r.problemas_obs,
+        r.proximos_pasos,
+        r.responsable_id,
+        u.nombre AS nombre_responsable,
+        u.email AS email_responsable,
+        c.nombre AS nombre_cliente,
+        c.telefono AS telefono_cliente,
+        -- Obtener fotos del reporte si existen
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'id', rf.id,
+              'ruta_foto', rf.ruta_foto
+            ) 
+            ORDER BY rf.id
+          ) FILTER (WHERE rf.id IS NOT NULL),
+          '[]'
+        ) AS fotos
+      FROM reportes r
+      JOIN proyectos p ON r.id_proyecto = p.id
+      JOIN clientes c ON p.cliente_id = c.id
+      JOIN usuarios u ON r.responsable_id = u.id
+      LEFT JOIN reportes_fotos rf ON r.id = rf.id_reporte
+      WHERE r.id = $1
+      GROUP BY 
+        r.id, p.id, u.id, c.id;
+    `;
+
+    const result = await pool.query(query, [reporte_id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ 
+        message: `No se encontró un reporte con el ID ${reporte_id}` 
+      });
+    }
+
+    const reporte = result.rows[0];
+
+    // Estructurar la respuesta para el PDF
+    const respuestaPDF = {
+      id: reporte.id,
+      proyecto: {
+        id: reporte.id_proyecto,
+        nombre: reporte.nombre_proyecto,
+        estado: reporte.estado_proyecto,
+        presupuesto: reporte.presupuesto,
+        fecha_inicio: reporte.fecha_inicio,
+        fecha_fin: reporte.fecha_fin,
+        ubicacion: reporte.ubicacion,
+        tipo_servicio: reporte.tipo_servicio
+      },
+      cliente: {
+        nombre: reporte.nombre_cliente,
+        telefono: reporte.telefono_cliente
+      },
+      reporte: {
+        fecha_creacion: reporte.fecha_creacion,
+        avance: reporte.avance,
+        actividades: reporte.actividades,
+        problemas_obs: reporte.problemas_obs,
+        proximos_pasos: reporte.proximos_pasos
+      },
+      responsable: {
+        id: reporte.responsable_id,
+        nombre: reporte.nombre_responsable,
+        email: reporte.email_responsable
+      },
+      fotos: reporte.fotos
+    };
+
+    res.json(respuestaPDF);
+
+  } catch (error) {
+    console.error('Error en getReporteParaPDF:', error);
+    res.status(500).json({ 
+      message: 'Error del servidor al obtener datos para PDF',
+      error: error.message 
+    });
+  }
+};
+
 module.exports = {
   getReportes,
   getReportesPorProyecto,
-  crearReporte
+  crearReporte,
+  getReporteParaPDF
 };
