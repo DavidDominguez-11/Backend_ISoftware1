@@ -6,12 +6,14 @@ const router = express.Router();
 const { 
   getReportes, 
   getReportesPorProyecto, 
-  crearReporte 
+  crearReporte,
+  getReporteParaPDF 
 } = require('../controllers/reportesController');
 
 // Definir las rutas para reportes
 router.get('/proyectos/reportes', getReportes);
 router.get('/proyectos/:proyecto_id/reportes', getReportesPorProyecto);
 router.post('/proyectos/:proyecto_id/reportes', crearReporte);
+router.get('/reportes/:reporte_id/pdf', getReporteParaPDF);
 
 module.exports = router;
