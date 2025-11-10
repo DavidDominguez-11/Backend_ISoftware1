@@ -1,101 +1,128 @@
-//controllers/reportesController.js
 const pool = require('../config/db');
 
 /**
- * Obtiene todos los reportes con información detallada del proyecto y responsable
+ * Obtiene todos los proyectos con información resumida de reportes
  */
 const getReportes = async (req, res) => {
   try {
     const query = `
       SELECT 
-        r.id,
-        r.id_proyecto,
-        p.nombre AS nombre_proyecto,
-        r.fecha_creacion,
-        r.avance,
-        r.actividades,
-        r.problemas_obs,
-        r.proximos_pasos,
-        r.responsable_id,
-        u.nombre AS nombre_responsable,
-        u.email AS email_responsable
-      FROM reportes r
-      JOIN proyectos p ON r.id_proyecto = p.id
-      JOIN usuarios u ON r.responsable_id = u.id
-      ORDER BY r.fecha_creacion DESC;
+        p.id,
+        p.nombre,
+        c.nombre AS cliente,
+        MAX(r.fecha_creacion) AS ultimo_reporte,
+        COUNT(r.id) AS total_reportes,
+        MAX(r.avance) AS avance_actual,
+        p.estado
+      FROM proyectos p
+      JOIN clientes c ON p.cliente_id = c.id
+      LEFT JOIN reportes r ON p.id = r.id_proyecto
+      GROUP BY p.id, c.id
+      ORDER BY p.nombre;
     `;
 
     const result = await pool.query(query);
 
-    const reportes = result.rows.map(row => ({
+    const proyectosConReportes = result.rows.map(row => ({
       id: row.id,
-      id_proyecto: row.id_proyecto,
-      nombre_proyecto: row.nombre_proyecto,
-      fecha_creacion: row.fecha_creacion,
-      avance: row.avance,
-      actividades: row.actividades,
-      problemas_obs: row.problemas_obs,
-      proximos_pasos: row.proximos_pasos,
-      responsable_id: row.responsable_id,
-      nombre_responsable: row.nombre_responsable,
-      email_responsable: row.email_responsable
+      nombre: row.nombre,
+      cliente: row.cliente,
+      ultimoReporte: row.ultimo_reporte ? new Date(row.ultimo_reporte).toISOString().split('T')[0] : null,
+      totalReportes: parseInt(row.total_reportes) || 0,
+      avanceActual: row.avance_actual || 0,
+      estado: row.estado
     }));
 
-    res.json(reportes);
+    res.json(proyectosConReportes);
 
   } catch (error) {
     console.error('Error en getReportes:', error);
     res.status(500).json({ 
-      message: 'Error del servidor al obtener reportes',
+      message: 'Error del servidor al obtener proyectos con reportes',
       error: error.message 
     });
   }
 };
 
 /**
- * Obtiene reportes de un proyecto específico
+ * Obtiene reportes de un proyecto específico con información detallada
  */
 const getReportesPorProyecto = async (req, res) => {
   try {
     const { proyecto_id } = req.params;
 
-    const query = `
+    // Primero obtener información del proyecto
+    const proyectoQuery = `
+      SELECT 
+        p.id,
+        p.nombre,
+        c.nombre AS cliente,
+        MAX(r.avance) AS avance_actual
+      FROM proyectos p
+      JOIN clientes c ON p.cliente_id = c.id
+      LEFT JOIN reportes r ON p.id = r.id_proyecto
+      WHERE p.id = $1
+      GROUP BY p.id, c.id;
+    `;
+
+    const proyectoResult = await pool.query(proyectoQuery, [proyecto_id]);
+
+    if (proyectoResult.rows.length === 0) {
+      return res.status(404).json({ 
+        message: `Proyecto con ID ${proyecto_id} no encontrado` 
+      });
+    }
+
+    const proyectoInfo = proyectoResult.rows[0];
+
+    // Luego obtener los reportes del proyecto con fotos
+    const reportesQuery = `
       SELECT 
         r.id,
-        r.id_proyecto,
-        p.nombre AS nombre_proyecto,
         r.fecha_creacion,
         r.avance,
         r.actividades,
         r.problemas_obs,
         r.proximos_pasos,
-        r.responsable_id,
-        u.nombre AS nombre_responsable,
-        u.email AS email_responsable
+        u.nombre AS responsable,
+        json_agg(
+          json_build_object(
+            'id', rf.id,
+            'url', rf.ruta_foto
+          ) ORDER BY rf.id
+        ) FILTER (WHERE rf.id IS NOT NULL) AS fotos
       FROM reportes r
-      JOIN proyectos p ON r.id_proyecto = p.id
       JOIN usuarios u ON r.responsable_id = u.id
+      LEFT JOIN reportes_fotos rf ON r.id = rf.id_reporte
       WHERE r.id_proyecto = $1
+      GROUP BY r.id, u.nombre
       ORDER BY r.fecha_creacion DESC;
     `;
 
-    const result = await pool.query(query, [proyecto_id]);
+    const reportesResult = await pool.query(reportesQuery, [proyecto_id]);
 
-    const reportes = result.rows.map(row => ({
+    const proyecto = {
+      id: proyectoInfo.id,
+      nombre: proyectoInfo.nombre,
+      cliente: proyectoInfo.cliente,
+      avanceActual: proyectoInfo.avance_actual || 0
+    };
+
+    const reportes = reportesResult.rows.map(row => ({
       id: row.id,
-      id_proyecto: row.id_proyecto,
-      nombre_proyecto: row.nombre_proyecto,
-      fecha_creacion: row.fecha_creacion,
+      fecha: new Date(row.fecha_creacion).toISOString().split('T')[0],
       avance: row.avance,
-      actividades: row.actividades,
-      problemas_obs: row.problemas_obs,
-      proximos_pasos: row.proximos_pasos,
-      responsable_id: row.responsable_id,
-      nombre_responsable: row.nombre_responsable,
-      email_responsable: row.email_responsable
+      actividadesCompletadas: row.actividades,
+      problemas: row.problemas_obs,
+      proximosPasos: row.proximos_pasos,
+      responsable: row.responsable,
+      fotos: row.fotos || []
     }));
 
-    res.json(reportes);
+    res.json({
+      proyecto: proyecto,
+      reportes: reportes
+    });
 
   } catch (error) {
     console.error('Error en getReportesPorProyecto:', error);
