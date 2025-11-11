@@ -339,9 +339,121 @@ const getReporteParaPDF = async (req, res) => {
   }
 };
 
+/**
+ * SUBIR FOTOS A UN REPORTE (URLs simples)
+ * POST /reportes/{reporte_id}/fotos
+ * Body: { fotos: ["url1", "url2", ...] }
+ */
+const subirFotosReporteSimple = async (req, res) => {
+  try {
+    const { reporte_id } = req.params;
+    const { fotos } = req.body;
+
+    // Validar que el reporte_id sea válido
+    if (isNaN(reporte_id) || !Number.isInteger(Number(reporte_id))) {
+      return res.status(400).json({
+        message: 'El ID del reporte debe ser un número entero válido',
+        received: reporte_id
+      });
+    }
+
+    // Validar que se enviaron URLs de fotos
+    if (!fotos || !Array.isArray(fotos) || fotos.length === 0) {
+      return res.status(400).json({
+        message: 'Debe proporcionar un array de URLs de fotos',
+        ejemplo: { fotos: ["https://ejemplo.com/foto1.jpg", "https://ejemplo.com/foto2.jpg"] }
+      });
+    }
+
+    // Validar que todas las URLs sean strings válidos
+    for (let i = 0; i < fotos.length; i++) {
+      const url = fotos[i];
+      if (typeof url !== 'string' || url.trim() === '') {
+        return res.status(400).json({
+          message: `La foto en posición ${i + 1} debe ser una URL válida (string no vacío)`,
+          received: url
+        });
+      }
+    }
+
+    // Verificar que el reporte existe usando raw SQL
+    const reporteQuery = `
+      SELECT 
+        r.id,
+        r.fecha_creacion,
+        r.avance,
+        p.nombre AS proyecto_nombre,
+        p.estado AS proyecto_estado,
+        u.nombre AS responsable_nombre,
+        u.email AS responsable_email
+      FROM reportes r
+      JOIN proyectos p ON r.id_proyecto = p.id
+      JOIN usuarios u ON r.responsable_id = u.id
+      WHERE r.id = $1;
+    `;
+
+    const reporteResult = await pool.query(reporteQuery, [parseInt(reporte_id)]);
+
+    if (reporteResult.rows.length === 0) {
+      return res.status(404).json({
+        message: `No se encontró un reporte con el ID ${reporte_id}`
+      });
+    }
+
+    const reporte = reporteResult.rows[0];
+
+    // Guardar cada URL en base de datos usando raw SQL
+    const fotosGuardadas = [];
+    
+    for (const urlFoto of fotos) {
+      const insertFotoQuery = `
+        INSERT INTO reportes_fotos (id_reporte, ruta_foto)
+        VALUES ($1, $2)
+        RETURNING id, ruta_foto;
+      `;
+
+      const fotoResult = await pool.query(insertFotoQuery, [
+        parseInt(reporte_id),
+        urlFoto.trim()
+      ]);
+
+      const foto = fotoResult.rows[0];
+      fotosGuardadas.push({
+        id: foto.id,
+        ruta_foto: foto.ruta_foto
+      });
+    }
+
+    // Obtener total de fotos del reporte usando raw SQL
+    const conteoQuery = `SELECT COUNT(*) as total FROM reportes_fotos WHERE id_reporte = $1;`;
+    const conteoResult = await pool.query(conteoQuery, [parseInt(reporte_id)]);
+    const totalFotos = parseInt(conteoResult.rows[0].total);
+
+    res.status(201).json({
+      message: `${fotosGuardadas.length} foto(s) añadida(s) exitosamente al reporte`,
+      reporte: {
+        id: reporte.id,
+        proyecto: reporte.proyecto_nombre,
+        estado_proyecto: reporte.proyecto_estado,
+        responsable: reporte.responsable_nombre
+      },
+      fotos_guardadas: fotosGuardadas,
+      total_fotos_reporte: totalFotos
+    });
+
+  } catch (error) {
+    console.error('Error en subirFotosReporteSimple:', error);
+    res.status(500).json({
+      message: 'Error del servidor al guardar fotos del reporte',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getReportes,
   getReportesPorProyecto,
   crearReporte,
-  getReporteParaPDF
+  getReporteParaPDF,
+  subirFotosReporteSimple
 };
