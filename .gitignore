@@ -5,3 +5,5 @@ coverage
 coverage/
 
 .env
+
+src\server.js
