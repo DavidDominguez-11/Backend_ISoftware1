@@ -134,6 +134,26 @@ CREATE TABLE IF NOT EXISTS proyecto_material (
     UNIQUE (id_proyecto, id_material)
 );
 
+CREATE TABLE IF NOT EXISTS reportes (
+    id SERIAL PRIMARY KEY,
+    id_proyecto INTEGER NOT NULL,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    avance INTEGER CHECK (avance >= 0 AND avance <= 100),
+    actividades TEXT NOT NULL,
+    problemas_obs TEXT NOT NULL,
+    proximos_pasos TEXT NOT NULL,
+    responsable_id INTEGER NOT NULL,
+    FOREIGN KEY (id_proyecto) REFERENCES proyectos(id),
+    FOREIGN KEY (responsable_id) REFERENCES usuarios(id)
+);
+
+CREATE TABLE IF NOT EXISTS reportes_fotos (
+    id SERIAL PRIMARY KEY,
+    id_reporte INTEGER NOT NULL,
+    ruta_foto VARCHAR(500) NOT NULL,
+    FOREIGN KEY (id_reporte) REFERENCES reportes(id)
+);
+
 -- ============================================
 -- TRIGGER PARA CONTROL AUTOMÁTICO DE FECHA_FIN
 -- ============================================
