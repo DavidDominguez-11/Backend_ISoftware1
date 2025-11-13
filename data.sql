@@ -182,3 +182,31 @@ INSERT INTO proyecto_material (id_proyecto, id_material, ofertada, en_obra, rese
 ((SELECT id FROM proyectos LIMIT 1), (SELECT id FROM materiales WHERE codigo='PRB01'), 15, 15, 0),
 -- PRB02 tiene 50 en obra, menos que stock 200 -> no alertas
 ((SELECT id FROM proyectos LIMIT 1), (SELECT id FROM materiales WHERE codigo='PRB02'), 50, 50, 0);
+
+INSERT INTO reportes (id_proyecto, avance, actividades, problemas_obs, proximos_pasos, responsable_id)
+VALUES
+-- ========================
+-- PROYECTO 2: Piscina Hotel Costa Azul (3 reportes)
+-- ========================
+(2, 25, 'Se realizó la excavación inicial y nivelación del terreno.', 'Retraso menor por disponibilidad de maquinaria.', 'Preparar encofrado y estructura de refuerzo.', 2),
+(2, 55, 'Colado de losa base completado y armado de muros laterales en curso.', 'Falta de material de acero por retraso del proveedor.', 'Completar muros y comenzar impermeabilización.', 2),
+(2, 85, 'Instalación del sistema hidráulico y pruebas preliminares de filtración realizadas.', 'Pequeñas fugas detectadas en válvulas secundarias.', 'Reparar válvulas y preparar área para recubrimiento final.', 2),
+
+-- ========================
+-- PROYECTO 3: Jacuzzi Club Náutico del Lago (1 reporte)
+-- ========================
+(3, 60, 'Montaje de estructura del jacuzzi completado. Instalación eléctrica en progreso.', 'Retraso en entrega de azulejos decorativos.', 'Finalizar azulejos y realizar pruebas de temperatura.', 2),
+
+-- ========================
+-- PROYECTO 4: Paneles Solares Residencial Las Palmas (5 reportes)
+-- ========================
+(4, 15, 'Revisión del techo y medición de superficie para instalación de soportes.', '', 'Colocar bases metálicas para los paneles.', 2),
+(4, 35, 'Estructuras metálicas instaladas y niveladas.', 'Lluvia impidió continuar con cableado.', 'Reprogramar tendido eléctrico.', 2),
+(4, 58, 'Cableado interno completado. Inversor recibido en bodega.', '', 'Montar paneles solares y realizar conexión inicial.', 2),
+(4, 78, 'Paneles montados y conexión preliminar establecida.', 'Cliente pidió ajustar la orientación de 10 paneles.', 'Reorientar paneles y asegurar estructura.', 2),
+(4, 100, 'Instalación finalizada. Generación de energía verificada con éxito.', '', 'Entrega de documentación y cierre de proyecto.', 1),
+
+-- ========================
+-- PROYECTO 5: Piscina Hotel Mar y Sol (1 reporte)
+-- ========================
+(5, 100, 'Proyecto completado. Pruebas hidráulicas y entrega al cliente realizadas.', '', 'Dar mantenimiento de cortesía en 3 meses.', 1);

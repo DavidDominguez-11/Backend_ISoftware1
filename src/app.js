@@ -24,6 +24,7 @@ const materialesRoutes = require('./routes/materialesRoutes');
 const getUsersInfo = require('./routes/userRoutes');
 const proyectoMaterialRoutes = require('./routes/proyectoMaterialRoutes');
 const clientesRoutes = require('./routes/clientesRoutes');
+const reportesRoutes = require('./routes/reportesRoutes');
 
 app.use('/services/auth', authRoutes);
 app.use('/services', projectsRoutes);
@@ -35,5 +36,6 @@ app.use('/services', materialesRoutes);
 app.use('/services', getUsersInfo);
 app.use('/services', proyectoMaterialRoutes);
 app.use('/services', clientesRoutes);
+app.use('/services', reportesRoutes);
 
 module.exports = app;
