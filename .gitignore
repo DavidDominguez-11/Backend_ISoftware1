@@ -5,3 +5,7 @@ coverage
 coverage/
 
 .env
+
+src\server.js
+docker-compose.yml
+Dockerfile
