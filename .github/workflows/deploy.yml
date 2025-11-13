@@ -23,7 +23,7 @@ jobs:
             git pull origin DEPLOY
             echo "✅ git pull exitoso."
             echo "🧱 Reconstruyendo contenedores..."
-            docker compose down
+            docker compose down -v
             docker compose up -d
             docker image prune -f
             docker ps
