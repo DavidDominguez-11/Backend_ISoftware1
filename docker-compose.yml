@@ -12,23 +12,23 @@ services:
       - "5431:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/1_init.sql
+      - ./init.sql:/docker-entrypoint-initdb.d/1_init.sql  # SQL inicial
       - ./data.sql:/docker-entrypoint-initdb.d/2_data.sql
 
   backend:
-    image: daviddominguez11/poolcenter-backend:latest
+    build: .  # Usa tu Dockerfile existente
     container_name: my-backend
     ports:
       - "4000:4000"
     env_file:
       - .env
     environment:
-      DB_HOST: postgres
+      DB_HOST: postgres  # Usa el nombre del servicio de PostgreSQL
       POSTGRES_USER: usuario
       POSTGRES_PASSWORD: secret
       POSTGRES_DB: test_db
-      PORT_DB: 5432
-      SERVER_PORT_TEST: 4000
+      PORT_DB: 5432  # Puerto interno del contenedor PostgreSQL
+      SERVER_PORT_TEST: 4000  # Puerto para la aplicación Node.js
     depends_on:
       - postgres
 
