@@ -12,23 +12,26 @@ services:
       - "5431:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/1_init.sql  # SQL inicial
+      - ./init.sql:/docker-entrypoint-initdb.d/1_init.sql
       - ./data.sql:/docker-entrypoint-initdb.d/2_data.sql
 
   backend:
-    build: .  # Usa tu Dockerfile existente
+    build: .
     container_name: my-backend
     ports:
       - "4000:4000"
     env_file:
       - .env
     environment:
-      DB_HOST: postgres  # Usa el nombre del servicio de PostgreSQL
+      DB_HOST: postgres
       POSTGRES_USER: usuario
       POSTGRES_PASSWORD: secret
       POSTGRES_DB: test_db
-      PORT_DB: 5432  # Puerto interno del contenedor PostgreSQL
-      SERVER_PORT_TEST: 4000  # Puerto para la aplicación Node.js
+      PORT_DB: 5432
+      SERVER_PORT_TEST: 4000
+    volumes:
+      - /etc/ssl/private/cloudflare-origin.key:/etc/ssl/private/cloudflare-origin.key:ro
+      - /etc/ssl/certs/cloudflare-origin.pem:/etc/ssl/certs/cloudflare-origin.pem:ro
     depends_on:
       - postgres
 
