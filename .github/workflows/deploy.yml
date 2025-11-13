@@ -1,28 +1,16 @@
-name: 🚀 Deploy Backend to Server
+name: 🚀 Deploy in Server
 
 on:
   push:
     branches:
-      - DEPLOY  # Se ejecuta solo cuando hagas push al main
+      - DEPLOY
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Clonar repositorio
-        uses: actions/checkout@v4
-
-      - name: 🐋 Iniciar sesión en Docker Hub
-        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
-
-      - name: 🏗️ Construir imagen Docker
-        run: docker build -t ${{ secrets.IMAGE_NAME }}:latest .
-
-      - name: 📦 Subir imagen a Docker Hub
-        run: docker push ${{ secrets.IMAGE_NAME }}:latest
-
-      - name: ⚡ Desplegar en el servidor remoto
+      - name: Actualizar código en el servidor
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -30,9 +18,13 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script: |
-            cd ${{ secrets.REMOTE_APP_PATH }}
-            docker compose pull
+            cd ~/test1/Backend_ISoftware1
+            echo "🌀 Actualizando código con git pull..."
+            git pull origin DEPLOY
+            echo "✅ git pull exitoso."
+            echo "🧱 Reconstruyendo contenedores..."
             docker compose down
             docker compose up -d
             docker image prune -f
-
+            docker ps
+            echo "✅ Deploy completado exitosamente"
