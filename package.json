@@ -28,7 +28,9 @@
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
-    "pg": "^8.14.1"
+    "multer": "^2.0.2",
+    "pg": "^8.14.1",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "debug": "^4.4.1",
